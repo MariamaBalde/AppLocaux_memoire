@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  # Backend Laravel
+  backend:
+    build: ./backend
+    container_name: app_locaux_backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/var/www/html
+    environment:
+      - DB_CONNECTION=pgsql
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_DATABASE=app_locaux_db
+      - DB_USERNAME=app_user
+      - DB_PASSWORD=secret
+    depends_on:
+      - postgres
+    networks:
+      - plateforme_network
+
+  # Frontend React
+  frontend:
+    build: ./frontend
+    container_name: app_locaux_frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - plateforme_network
+
+  # Base de données PostgreSQL
+  postgres:
+    image: postgres:15
+    container_name: app_locaux_postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: app_locaux_db
+      POSTGRES_USER: app_user
+      POSTGRES_PASSWORD: foulah@18
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - plateforme_network
+
+  # pgAdmin
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: app_locaux_pgadmin
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: foulah18@gmail.com
+      PGADMIN_DEFAULT_PASSWORD: foulah@18
+    networks:
+      - plateforme_network
+
+networks:
+  plateforme_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
