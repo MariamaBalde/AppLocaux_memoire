@@ -52,13 +52,29 @@ class User extends Authenticatable
     }
 
     // Relations
-    public function vendor()
+    public function vendeur()
     {
-        return $this->hasOne(Vendor::class);
+        return $this->hasOne(Vendeur::class);
     }
 
-    public function orders()
-    {
-        return $this->hasMany(Order::class);
+    public function createdProducts(){
+        return $this->hasMany(Product::class,'created_by');
+    }
+
+    // public function orders()
+    // {
+    //     return $this->hasMany(Order::class);
+    // }
+
+    public function isVendeur():bool{
+        return $this->role === 'vendeur';
+    }
+
+    public function isAdmin():bool{
+        return $this->role === 'admin';
+    }
+
+    public function isClient():bool{
+        return $this->role === 'client';
     }
 }
