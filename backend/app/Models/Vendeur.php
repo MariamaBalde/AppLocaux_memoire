@@ -13,7 +13,6 @@ class Vendeur extends Model
         'user_id',
         'shop_name',
         'description',
-        'logo',
         'verified',
         'rating',
         'total_sales'

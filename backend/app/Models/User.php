@@ -11,7 +11,7 @@ use Laravel\Passport\HasApiTokens;
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, HasApiTokens,Notifiable;
+    use HasFactory, HasApiTokens, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -23,9 +23,12 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
-        'tel',
+        'phone',
         'address',
-        'country'
+        'statut',
+        'country',
+        'last_login_at',
+        'email_verified_at',
     ];
 
     /**
@@ -36,6 +39,8 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'statut',
+       
     ];
 
     /**
@@ -57,24 +62,33 @@ class User extends Authenticatable
         return $this->hasOne(Vendeur::class);
     }
 
-    public function createdProducts(){
-        return $this->hasMany(Product::class,'created_by');
-    }
+    // public function createdProducts()
+    // {
+    //     return $this->hasMany(Product::class, 'created_by');
+    // }
 
     // public function orders()
     // {
     //     return $this->hasMany(Order::class);
     // }
 
-    public function isVendeur():bool{
+    public function isVendeur(): bool
+    {
         return $this->role === 'vendeur';
     }
 
-    public function isAdmin():bool{
+    public function isAdmin(): bool
+    {
         return $this->role === 'admin';
     }
 
-    public function isClient():bool{
+    public function isClient(): bool
+    {
         return $this->role === 'client';
+    }
+
+    public function isLivreur(): bool
+    {
+        return $this->role === 'livreur';
     }
 }

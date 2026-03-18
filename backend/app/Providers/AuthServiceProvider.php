@@ -19,6 +19,8 @@ class AuthServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+                $this->registerPolicies();
+
         // ✅ Enregistrer les routes Passport
         // Passport::routes(); // Déprécié en Laravel 11
         
@@ -27,16 +29,16 @@ class AuthServiceProvider extends ServiceProvider
         Passport::refreshTokensExpireIn(now()->addDays(30));
         Passport::personalAccessTokensExpireIn(now()->addMonths(6));
         
-        // ✅ Définir les scopes (permissions) si nécessaire
-        Passport::tokensCan([
-            'manage-products' => 'Gérer les produits',
-            'place-orders' => 'Passer des commandes',
-            'manage-orders' => 'Gérer les commandes',
-        ]);
+        // // ✅ Définir les scopes (permissions) si nécessaire
+        // Passport::tokensCan([
+        //     'manage-products' => 'Gérer les produits',
+        //     'place-orders' => 'Passer des commandes',
+        //     'manage-orders' => 'Gérer les commandes',
+        // ]);
         
-        // Scope par défaut
-        Passport::setDefaultScope([
-            'place-orders',
-        ]);
+        // // Scope par défaut
+        // Passport::setDefaultScope([
+        //     'place-orders',
+        // ]);
     }
 }

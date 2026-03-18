@@ -26,8 +26,10 @@ return new class extends Migration
             $table->foreignId('updated_by')->nullable()->constrained('users');
             $table->timestamps();
 
-              $table->index('name');
+              $table->index('vendeur_id');
+            $table->index('category_id');
             $table->index('is_active');
+            $table->index('created_at');
         });
     }
 

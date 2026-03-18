@@ -40,6 +40,11 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+        'api' => [
+            'driver' => 'passport',
+            'provider' => 'users',
+            'hash' => false,
+        ],
     ],
 
     /*
@@ -71,12 +76,6 @@ return [
         // ],
     ],
 
-
-    'api' => [
-        'driver' => 'passport',
-        'provider' => 'users',
-        'hash' => false,
-    ],
     /*
     |--------------------------------------------------------------------------
     | Resetting Passwords

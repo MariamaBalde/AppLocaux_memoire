@@ -16,9 +16,9 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->string('shop_name');
             $table->text('description')->nullable();
-            $table->string('logo')->nullable();
-            // $table->boolean('verified')->default(false);
-            // $table->decimal('total_sales', 15, 2)->default(0);
+            $table->boolean('verified')->default(false);
+            $table->decimal('rating', 3, 1)->default(0);
+            $table->decimal('total_sales', 15, 2)->default(0);
             $table->timestamps();
         });
     }

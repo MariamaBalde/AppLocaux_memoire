@@ -20,7 +20,8 @@ return new class extends Migration
             $table->enum('role',['client','vendeur','admin'])->default('client');
             $table->string('phone')->nullable();
             $table->text('address')->nullable();
-            $table->string('country')->nullable();
+            $table->string('country')->default('SN'); // Sénégal par défaut
+            $table->enum('statut', ['actif', 'suspendu', 'bloque'])->default('actif');
             $table->rememberToken();
             $table->timestamps();
         });
