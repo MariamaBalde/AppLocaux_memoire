@@ -23,6 +23,7 @@ class UserSeeder extends Seeder
             'address' => 'Dakar, Sénégal',
             'statut' => 'actif',
             'country' => 'SN',
+            'email_verified_at' => now(),
         ]);
 
         $vendeurs = [

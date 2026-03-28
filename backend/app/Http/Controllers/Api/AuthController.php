@@ -2,16 +2,16 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Services\Auth\AuthService as AuthAuthService;
+use App\Http\Controllers\Controller;
+use App\Services\Auth\AuthService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Routing\Controller as RoutingController;
 
-class AuthController extends RoutingController
+class AuthController extends Controller
 {
     protected $authService;
 
-    public function __construct(AuthAuthService $authService)
+    public function __construct(AuthService $authService)
     {
         $this->authService = $authService;
     }

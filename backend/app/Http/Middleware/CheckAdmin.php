@@ -1,12 +1,11 @@
 <?php
-
 namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-class AdminMiddleware
+class CheckAdmin
 {
     /**
      * Handle an incoming request.
@@ -15,6 +14,13 @@ class AdminMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
+
+        if (!$request->user() || !$request->user()->isAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Accès refusé. Réservé aux administrateurs.'
+            ], 403);
+        }
         return $next($request);
     }
 }

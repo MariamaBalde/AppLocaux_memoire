@@ -2,19 +2,16 @@
 
 namespace App\Services\Auth;
 
-use Illuminate\Validation\ValidationException;
 use GuzzleHttp\Client;
+use Illuminate\Validation\ValidationException;
 
-/**
- * Service pour gérer les tokens OAuth (DRY - évite la duplication)
- */
 class TokenService
 {
     private Client $client;
 
-    public function __construct()
+    public function __construct(Client $client)
     {
-        $this->client = new Client();
+        $this->client = $client;
     }
 
     /**
@@ -38,9 +35,6 @@ class TokenService
         }
     }
 
-    /**
-     * Demander un token avec grant_type=password
-     */
     public function passwordGrant(string $email, string $password)
     {
         return $this->requestToken([
@@ -51,9 +45,6 @@ class TokenService
         ]);
     }
 
-    /**
-     * Rafraîchir un token
-     */
     public function refreshGrant(string $refreshToken)
     {
         return $this->requestToken([

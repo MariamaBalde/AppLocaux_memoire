@@ -40,7 +40,7 @@ class User extends Authenticatable
         'password',
         'remember_token',
         'statut',
-       
+
     ];
 
     /**
@@ -62,15 +62,15 @@ class User extends Authenticatable
         return $this->hasOne(Vendeur::class);
     }
 
-    // public function createdProducts()
-    // {
-    //     return $this->hasMany(Product::class, 'created_by');
-    // }
+    public function createdProducts()
+    {
+        return $this->hasMany(Product::class, 'created_by');
+    }
 
-    // public function orders()
-    // {
-    //     return $this->hasMany(Order::class);
-    // }
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
+    }
 
     public function isVendeur(): bool
     {
@@ -90,5 +90,10 @@ class User extends Authenticatable
     public function isLivreur(): bool
     {
         return $this->role === 'livreur';
+    }
+
+    public function cartItems()
+    {
+        return $this->hasMany(Cart::class);
     }
 }

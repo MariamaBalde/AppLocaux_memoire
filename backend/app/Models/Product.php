@@ -20,7 +20,7 @@ class Product extends Model
         'weight',
         'is_active',
         'created_by',
-        'update_by',
+        'updated_by',
     ];
 
     protected $casts = [
