@@ -2,13 +2,82 @@
 
 namespace App\Services\Product;
 
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\User;
+use App\Models\Vendeur;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class ProductService
 {
+    private function extractPublicStoragePath(?string $imageUrl): ?string
+    {
+        if (!$imageUrl || !is_string($imageUrl)) {
+            return null;
+        }
+
+        $parsedPath = parse_url($imageUrl, PHP_URL_PATH);
+        $path = is_string($parsedPath) ? $parsedPath : $imageUrl;
+        $path = str_replace('\\', '/', $path);
+
+        $prefix = '/storage/';
+        $position = strpos($path, $prefix);
+        if ($position === false) {
+            return null;
+        }
+
+        return ltrim(substr($path, $position + strlen($prefix)), '/');
+    }
+
+    private function uploadProductImages(array $images): array
+    {
+        $imageUrls = [];
+        foreach ($images as $image) {
+            $path = $image->store('products', 'public');
+            $imageUrls[] = '/storage/' . ltrim($path, '/');
+        }
+
+        return $imageUrls;
+    }
+
+    private function resolveFinalImageUrls(array $validated): array
+    {
+        $imageUrls = [];
+
+        if (isset($validated['image_urls']) && is_array($validated['image_urls'])) {
+            $imageUrls = array_merge($imageUrls, $validated['image_urls']);
+        }
+
+        if (isset($validated['images']) && is_array($validated['images'])) {
+            $imageUrls = array_merge($imageUrls, $this->uploadProductImages($validated['images']));
+        }
+
+        $imageUrls = array_values(array_unique(array_filter($imageUrls)));
+
+        if (count($imageUrls) > 5) {
+            throw ValidationException::withMessages([
+                'images' => ['Vous pouvez envoyer jusqu\'à 5 images maximum.'],
+            ]);
+        }
+
+        return $imageUrls;
+    }
+
+    private function ensureVerifiedVendor(User $user): void
+    {
+        if (!$user->isVendeur()) {
+            throw ValidationException::withMessages([
+                'role' => ['Seuls les vendeurs peuvent accéder à cette ressource.'],
+            ]);
+        }
+
+        if (!$user->vendeur || !$user->vendeur->verified) {
+            throw ValidationException::withMessages([
+                'verified' => ['Votre compte vendeur doit être vérifié par un administrateur.'],
+            ]);
+        }
+    }
     
     public function getAllProducts(array $filters = [])
     {
@@ -103,19 +172,7 @@ class ProductService
    
     public function createProduct(array $data, User $user)
     {
-        // Vérifier que l'utilisateur est un vendeur
-        if (!$user->isVendeur()) {
-            throw ValidationException::withMessages([
-                'role' => ['Seuls les vendeurs peuvent créer des produits.'],
-            ]);
-        }
-
-        // Vérifier que le vendeur est vérifié
-        if (!$user->vendeur->verified) {
-            throw ValidationException::withMessages([
-                'verified' => ['Votre compte vendeur doit être vérifié pour ajouter des produits.'],
-            ]);
-        }
+        $this->ensureVerifiedVendor($user);
 
         // Valider les données
         $validated = validator($data, [
@@ -127,17 +184,12 @@ class ProductService
             'weight' => 'nullable|numeric|min:0',
             'images' => 'nullable|array|max:5',
             'images.*' => 'image|mimes:jpeg,png,jpg,webp|max:2048', // 2MB max par image
+            'image_urls' => 'nullable|array|max:5',
+            'image_urls.*' => 'url|max:2048',
             'is_active' => 'boolean',
         ])->validate();
 
-        // Uploader les images
-        $imageUrls = [];
-        if (isset($validated['images'])) {
-            foreach ($validated['images'] as $image) {
-                $path = $image->store('products', 'public');
-                $imageUrls[] = Storage::url($path);
-            }
-        }
+        $imageUrls = $this->resolveFinalImageUrls($validated);
 
         // Créer le produit
         $product = Product::create([
@@ -173,6 +225,10 @@ class ProductService
             ]);
         }
 
+        if (!$user->isAdmin()) {
+            $this->ensureVerifiedVendor($user);
+        }
+
         // Valider les données
         $validated = validator($data, [
             'category_id' => 'sometimes|exists:categories,id',
@@ -183,28 +239,26 @@ class ProductService
             'weight' => 'nullable|numeric|min:0',
             'images' => 'nullable|array|max:5',
             'images.*' => 'image|mimes:jpeg,png,jpg,webp|max:2048',
+            'image_urls' => 'nullable|array|max:5',
+            'image_urls.*' => 'url|max:2048',
             'is_active' => 'sometimes|boolean',
         ])->validate();
 
-        // Uploader les nouvelles images si présentes
-        if (isset($validated['images'])) {
+        $wantsToReplaceImages = isset($validated['images']) || isset($validated['image_urls']);
+        if ($wantsToReplaceImages) {
             // Supprimer les anciennes images
             if ($product->images && is_array($product->images)) {
                 foreach ($product->images as $oldImage) {
                     if ($oldImage) {
-                        $oldPath = str_replace('/storage/', '', $oldImage);
-                        Storage::disk('public')->delete($oldPath);
+                        $oldPath = $this->extractPublicStoragePath($oldImage);
+                        if ($oldPath) {
+                            Storage::disk('public')->delete($oldPath);
+                        }
                     }
                 }
             }
 
-            // Uploader les nouvelles images
-            $imageUrls = [];
-            foreach ($validated['images'] as $image) {
-                $path = $image->store('products', 'public');
-                $imageUrls[] = Storage::url($path);
-            }
-            $validated['images'] = $imageUrls;
+            $validated['images'] = $this->resolveFinalImageUrls($validated);
         }
 
         // Ajouter updated_by
@@ -212,6 +266,64 @@ class ProductService
 
         // Mettre à jour le produit
         $product->update($validated);
+
+        return $product->load(['vendeur.user', 'category']);
+    }
+
+    public function createProductForVendor(array $data, User $admin)
+    {
+        if (!$admin->isAdmin()) {
+            throw ValidationException::withMessages([
+                'permission' => ['Seuls les administrateurs peuvent créer un produit pour un vendeur.'],
+            ]);
+        }
+
+        $validated = validator($data, [
+            'vendeur_id' => 'required|exists:vendeurs,id',
+            'category_id' => 'required|exists:categories,id',
+            'name' => 'required|string|max:255',
+            'description' => 'required|string',
+            'price' => 'required|numeric|min:0',
+            'stock' => 'required|integer|min:0',
+            'weight' => 'nullable|numeric|min:0',
+            'images' => 'nullable|array|max:5',
+            'images.*' => 'image|mimes:jpeg,png,jpg,webp|max:2048',
+            'image_urls' => 'nullable|array|max:5',
+            'image_urls.*' => 'url|max:2048',
+            'is_active' => 'sometimes|boolean',
+        ])->validate();
+
+        $vendeur = Vendeur::with('user')->find($validated['vendeur_id']);
+        if (!$vendeur || !$vendeur->user || !$vendeur->user->isVendeur()) {
+            throw ValidationException::withMessages([
+                'vendeur_id' => ['Le vendeur sélectionné est invalide.'],
+            ]);
+        }
+
+        if (!$vendeur->verified && ($validated['is_active'] ?? true) === true) {
+            throw ValidationException::withMessages([
+                'is_active' => ['Un vendeur non vérifié ne peut pas publier un produit actif.'],
+            ]);
+        }
+
+        $imageUrls = $this->resolveFinalImageUrls($validated);
+
+        $isActive = array_key_exists('is_active', $validated)
+            ? (bool) $validated['is_active']
+            : (bool) $vendeur->verified;
+
+        $product = Product::create([
+            'vendeur_id' => $vendeur->id,
+            'category_id' => $validated['category_id'],
+            'name' => $validated['name'],
+            'description' => $validated['description'],
+            'price' => $validated['price'],
+            'stock' => $validated['stock'],
+            'weight' => $validated['weight'] ?? null,
+            'images' => $imageUrls,
+            'is_active' => $isActive,
+            'created_by' => $admin->id,
+        ]);
 
         return $product->load(['vendeur.user', 'category']);
     }
@@ -234,21 +346,41 @@ class ProductService
             ]);
         }
 
-        // Vérifier si le produit est dans des commandes actives
-        // TODO: À implémenter quand OrderItem sera créé
-        // if ($product->orderItems()->whereHas('order', function($q) {
-        //     $q->whereIn('status', ['pending', 'processing', 'shipped']);
-        // })->exists()) {
-        //     throw ValidationException::withMessages([
-        //         'product' => ['Impossible de supprimer un produit avec des commandes actives.'],
-        //     ]);
-        // }
+        if (!$user->isAdmin()) {
+            $this->ensureVerifiedVendor($user);
+        }
+
+        // Empêche la suppression d'un produit impliqué dans des commandes en attente de traitement.
+        $activeOrderNumbers = OrderItem::where('product_id', $product->id)
+            ->whereHas('order', function ($query) {
+                $query->whereIn('status', ['pending']);
+            })
+            ->with('order:id,order_number')
+            ->get()
+            ->pluck('order.order_number')
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($activeOrderNumbers->isNotEmpty()) {
+            $count = $activeOrderNumbers->count();
+            $preview = $activeOrderNumbers->take(3)->implode(', ');
+            if ($count > 3) {
+                $preview .= ', ...';
+            }
+
+            throw ValidationException::withMessages([
+                'product' => ["Impossible de supprimer ce produit: {$count} commande(s) active(s) liée(s) ({$preview})."],
+            ]);
+        }
 
         // Supprimer les images du storage
         if ($product->images) {
             foreach ($product->images as $image) {
-                $path = str_replace('/storage/', '', $image);
-                Storage::disk('public')->delete($path);
+                $path = $this->extractPublicStoragePath($image);
+                if ($path) {
+                    Storage::disk('public')->delete($path);
+                }
             }
         }
 
@@ -278,6 +410,10 @@ class ProductService
             ]);
         }
 
+        if (!$user->isAdmin()) {
+            $this->ensureVerifiedVendor($user);
+        }
+
         // Inverser le statut
         $product->update([
             'is_active' => !$product->is_active,
@@ -290,13 +426,16 @@ class ProductService
    
     public function getVendorProducts(User $user, array $filters = [])
     {
-        if (!$user->isVendeur()) {
-            throw ValidationException::withMessages([
-                'role' => ['Seuls les vendeurs peuvent accéder à cette ressource.'],
-            ]);
-        }
+        $this->ensureVerifiedVendor($user);
 
         $query = Product::with(['category'])
+            ->withCount([
+                'orderItems as active_orders_count' => function ($query) {
+                    $query->whereHas('order', function ($orderQuery) {
+                        $orderQuery->whereIn('status', ['pending']);
+                    });
+                },
+            ])
             ->where('vendeur_id', $user->vendeur->id);
 
         // Filtre par statut (actif/inactif)
@@ -312,10 +451,17 @@ class ProductService
         // Tri
         $sortBy = $filters['sort_by'] ?? 'created_at';
         $sortOrder = $filters['sort_order'] ?? 'desc';
+        $validSortColumns = ['created_at', 'updated_at', 'name', 'price', 'stock', 'is_active'];
+        if (!in_array($sortBy, $validSortColumns, true)) {
+            $sortBy = 'created_at';
+        }
+        if (!in_array($sortOrder, ['asc', 'desc'], true)) {
+            $sortOrder = 'desc';
+        }
         $query->orderBy($sortBy, $sortOrder);
 
         // Pagination
-        $perPage = $filters['per_page'] ?? 10;
+        $perPage = min(max((int) ($filters['per_page'] ?? 10), 1), 100);
 
         return $query->paginate($perPage);
     }
@@ -336,6 +482,10 @@ class ProductService
             throw ValidationException::withMessages([
                 'permission' => ['Vous n\'êtes pas autorisé à modifier ce produit.'],
             ]);
+        }
+
+        if (!$user->isAdmin()) {
+            $this->ensureVerifiedVendor($user);
         }
 
         // Valider la quantité

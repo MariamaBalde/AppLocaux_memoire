@@ -22,8 +22,8 @@ class CheckVendeur
             ], 403);
         }
 
-        // Vérifier que le vendeur est vérifié (optionnel)
-        if (!$request->user()->vendeur->verified) {
+        $vendeur = $request->user()->vendeur;
+        if (!$vendeur || !$vendeur->verified) {
             return response()->json([
                 'success' => false,
                 'message' => 'Votre compte vendeur doit être vérifié par un administrateur.'

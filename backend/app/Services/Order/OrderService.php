@@ -2,16 +2,53 @@
 
 namespace App\Services\Order;
 
+use App\Events\OrderPlaced;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Payment;
 use App\Models\Cart;
+use App\Models\Product;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class OrderService
 {
+    private const VENDOR_ALLOWED_STATUSES = ['processing', 'shipped', 'delivered'];
+
+    private function resolveVendorOrder(User $user, int $id): Order
+    {
+        if (!$user->isVendeur() || !$user->vendeur) {
+            throw ValidationException::withMessages([
+                'role' => ['Seuls les vendeurs peuvent accéder à cette ressource.'],
+            ]);
+        }
+
+        $vendeurId = $user->vendeur->id;
+
+        $order = Order::with([
+            'user:id,name,email,phone',
+            'payment',
+            'items' => function ($query) use ($vendeurId) {
+                $query->where('vendeur_id', $vendeurId)
+                    ->with('product:id,name,images');
+            },
+        ])
+            ->whereHas('items', function ($query) use ($vendeurId) {
+                $query->where('vendeur_id', $vendeurId);
+            })
+            ->find($id);
+
+        if (!$order) {
+            throw ValidationException::withMessages([
+                'order' => ['Commande non trouvée pour ce vendeur.'],
+            ]);
+        }
+
+        return $order;
+    }
+
     /**
      * ═══════════════════════════════════════════════════════
      * CRÉER UNE COMMANDE DEPUIS LE PANIER
@@ -27,46 +64,56 @@ class OrderService
             'notes' => 'nullable|string',
         ])->validate();
 
-        // Récupérer le panier
-        $cartItems = Cart::with('product')->where('user_id', $user->id)->get();
-
-        if ($cartItems->isEmpty()) {
-            throw ValidationException::withMessages([
-                'cart' => ['Le panier est vide.'],
-            ]);
-        }
-
-        // Vérifier la disponibilité
-        foreach ($cartItems as $item) {
-            $product = $item->product;
-
-            if (!$product || !$product->is_active) {
-                throw ValidationException::withMessages([
-                    'product' => ['Le produit "' . ($product->name ?? 'inconnu') . '" n\'est plus disponible.'],
-                ]);
-            }
-
-            if ($product->stock < $item->quantity) {
-                throw ValidationException::withMessages([
-                    'stock' => ['Stock insuffisant pour "' . $product->name . '". Disponible : ' . $product->stock],
-                ]);
-            }
-        }
-
-        // Calculer les montants
-        $subtotal = $cartItems->sum(function ($item) {
-            return $item->product->price * $item->quantity;
-        });
-
-        $shippingCost = $this->calculateShippingCost($validated['shipping_method'], $subtotal);
-        $total = $subtotal + $shippingCost;
-
-        // Transaction database
         DB::beginTransaction();
 
         try {
-            // Générer le numéro de commande
-            $orderNumber = 'CMD-' . date('Y') . '-' . str_pad(Order::count() + 1, 6, '0', STR_PAD_LEFT);
+            $cartItems = Cart::with('product')
+                ->where('user_id', $user->id)
+                ->lockForUpdate()
+                ->get();
+
+            if ($cartItems->isEmpty()) {
+                throw ValidationException::withMessages([
+                    'cart' => ['Le panier est vide.'],
+                ]);
+            }
+
+            // Vérifier la disponibilité sur lignes verrouillées
+            $lockedProducts = Product::query()
+                ->whereIn('id', $cartItems->pluck('product_id')->all())
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+            foreach ($cartItems as $item) {
+                $product = $lockedProducts->get($item->product_id);
+
+                if (!$product || !$product->is_active) {
+                    throw ValidationException::withMessages([
+                        'product' => ['Le produit "' . ($product->name ?? 'inconnu') . '" n\'est plus disponible.'],
+                    ]);
+                }
+
+                if ($product->stock < $item->quantity) {
+                    throw ValidationException::withMessages([
+                        'stock' => ['Stock insuffisant pour "' . $product->name . '". Disponible : ' . $product->stock],
+                    ]);
+                }
+            }
+
+            // Calculer les montants à partir des prix verrouillés
+            $subtotal = $cartItems->sum(function ($item) use ($lockedProducts) {
+                $product = $lockedProducts->get($item->product_id);
+                return (float) ($product?->price ?? 0) * $item->quantity;
+            });
+
+            $shippingCost = $this->calculateShippingCost($validated['shipping_method'], (float) $subtotal);
+            $total = (float) $subtotal + $shippingCost;
+
+            // Générer un numéro de commande robuste en concurrence
+            do {
+                $orderNumber = 'CMD-' . now()->format('Y') . '-' . strtoupper(Str::random(10));
+            } while (Order::where('order_number', $orderNumber)->exists());
 
             // Créer la commande
             $order = Order::create([
@@ -82,7 +129,7 @@ class OrderService
 
             // Créer les items de commande
             foreach ($cartItems as $cartItem) {
-                $product = $cartItem->product;
+                $product = $lockedProducts->get($cartItem->product_id);
 
                 OrderItem::create([
                     'order_id' => $order->id,
@@ -109,6 +156,9 @@ class OrderService
             Cart::where('user_id', $user->id)->delete();
 
             DB::commit();
+
+            // Dispatcher l'événement OrderPlaced pour les notifications
+            OrderPlaced::dispatch($order->load(['items.product', 'payment', 'user']));
 
             return [
                 'order' => $order->load(['items.product', 'payment']),
@@ -159,10 +209,17 @@ class OrderService
         // Tri
         $sortBy = $filters['sort_by'] ?? 'created_at';
         $sortOrder = $filters['sort_order'] ?? 'desc';
+        $validSortColumns = ['created_at', 'updated_at', 'status', 'total', 'order_number'];
+        if (!in_array($sortBy, $validSortColumns, true)) {
+            $sortBy = 'created_at';
+        }
+        if (!in_array($sortOrder, ['asc', 'desc'], true)) {
+            $sortOrder = 'desc';
+        }
         $query->orderBy($sortBy, $sortOrder);
 
         // Pagination
-        $perPage = $filters['per_page'] ?? 10;
+        $perPage = min(max((int) ($filters['per_page'] ?? 10), 1), 100);
 
         return $query->paginate($perPage);
     }
@@ -243,7 +300,7 @@ class OrderService
      * CONFIRMER LE PAIEMENT (Simulé pour le MVP)
      * ═══════════════════════════════════════════════════════
      */
-    public function confirmPayment(int $orderId, array $data)
+    public function confirmPayment(User $user, int $orderId, array $data)
     {
         $order = Order::with('payment')->find($orderId);
 
@@ -252,6 +309,23 @@ class OrderService
                 'order' => ['Commande non trouvée.'],
             ]);
         }
+
+        // Seul le propriétaire de la commande ou un admin peut confirmer le paiement
+        if (!$user->isAdmin() && $order->user_id !== $user->id) {
+            throw ValidationException::withMessages([
+                'permission' => ['Vous n\'êtes pas autorisé à confirmer ce paiement.'],
+            ]);
+        }
+
+        if (!$order->payment) {
+            throw ValidationException::withMessages([
+                'payment' => ['Aucun paiement lié à cette commande.'],
+            ]);
+        }
+
+        $validated = validator($data, [
+            'transaction_id' => 'nullable|string|max:255',
+        ])->validate();
 
         if ($order->payment->status === 'completed') {
             throw ValidationException::withMessages([
@@ -262,7 +336,7 @@ class OrderService
         // Mettre à jour le paiement
         $order->payment->update([
             'status' => 'completed',
-            'transaction_id' => $data['transaction_id'] ?? 'TXN-' . time(),
+            'transaction_id' => $validated['transaction_id'] ?? 'TXN-' . time(),
             'paid_at' => now(),
         ]);
 
@@ -273,5 +347,81 @@ class OrderService
             'message' => 'Paiement confirmé',
             'order' => $order->load(['items.product', 'payment']),
         ];
+    }
+
+    /**
+     * ═══════════════════════════════════════════════════════
+     * DÉTAIL D'UNE COMMANDE CÔTÉ VENDEUR
+     * ═══════════════════════════════════════════════════════
+     */
+    public function getVendorOrderById(User $user, int $id)
+    {
+        return $this->resolveVendorOrder($user, $id);
+    }
+
+    public function updateVendorOrderStatus(User $user, int $id, string $targetStatus)
+    {
+        if (!in_array($targetStatus, self::VENDOR_ALLOWED_STATUSES, true)) {
+            throw ValidationException::withMessages([
+                'status' => ['Statut invalide pour un vendeur.'],
+            ]);
+        }
+
+        $order = $this->resolveVendorOrder($user, $id);
+
+        if (in_array($order->status, ['cancelled', 'refunded'], true)) {
+            throw ValidationException::withMessages([
+                'status' => ['Impossible de modifier une commande annulée ou remboursée.'],
+            ]);
+        }
+
+        $current = (string) $order->status;
+        $allowedTransitions = [
+            'pending' => ['processing'],
+            'processing' => ['shipped'],
+            'shipped' => ['delivered'],
+            'delivered' => [],
+        ];
+
+        $next = $allowedTransitions[$current] ?? [];
+        if (!in_array($targetStatus, $next, true)) {
+            throw ValidationException::withMessages([
+                'status' => ["Transition invalide: {$current} -> {$targetStatus}."],
+            ]);
+        }
+
+        $order->update(['status' => $targetStatus]);
+
+        return $this->resolveVendorOrder($user, $id);
+    }
+
+    public function updateVendorTracking(User $user, int $id, string $trackingNumber)
+    {
+        $trackingNumber = trim($trackingNumber);
+        if ($trackingNumber === '') {
+            throw ValidationException::withMessages([
+                'tracking_number' => ['Le numéro de suivi est requis.'],
+            ]);
+        }
+
+        if (mb_strlen($trackingNumber) > 255) {
+            throw ValidationException::withMessages([
+                'tracking_number' => ['Le numéro de suivi est trop long.'],
+            ]);
+        }
+
+        $order = $this->resolveVendorOrder($user, $id);
+
+        if (in_array($order->status, ['cancelled', 'refunded', 'delivered'], true)) {
+            throw ValidationException::withMessages([
+                'tracking_number' => ['Impossible de modifier le suivi pour ce statut de commande.'],
+            ]);
+        }
+
+        $order->update([
+            'tracking_number' => $trackingNumber,
+        ]);
+
+        return $this->resolveVendorOrder($user, $id);
     }
 }

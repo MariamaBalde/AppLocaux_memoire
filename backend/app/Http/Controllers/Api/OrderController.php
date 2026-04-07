@@ -104,7 +104,7 @@ class OrderController extends Controller
 
     /**
      * Annule une commande
-     * POST /api/orders/{id}/cancel
+     * PATCH /api/orders/{id}/cancel
      */
     public function cancel(Request $request, int $id): JsonResponse
     {
@@ -134,12 +134,12 @@ class OrderController extends Controller
 
     /**
      * Confirme le paiement d'une commande
-     * POST /api/orders/{id}/payment/confirm
+     * POST /api/orders/{id}/confirm-payment
      */
     public function confirmPayment(Request $request, int $id): JsonResponse
     {
         try {
-            $result = $this->orderService->confirmPayment($id, $request->all());
+            $result = $this->orderService->confirmPayment($request->user(), $id, $request->all());
 
             return response()->json([
                 'success' => true,

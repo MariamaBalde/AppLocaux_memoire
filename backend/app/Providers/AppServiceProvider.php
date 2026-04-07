@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\Vendeur;
+use App\Observers\VendeurObserver;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -21,6 +23,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Enregistrer les observers
+        Vendeur::observe(VendeurObserver::class);
     }
 }

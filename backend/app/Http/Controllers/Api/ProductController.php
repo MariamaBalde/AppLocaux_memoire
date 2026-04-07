@@ -205,7 +205,7 @@ class ProductController extends Controller
 
     /**
      * Liste les produits du vendeur connecté
-     * GET /api/vendor/products
+     * GET /api/vendeur/products
      */
     public function myProducts(Request $request): JsonResponse
     {

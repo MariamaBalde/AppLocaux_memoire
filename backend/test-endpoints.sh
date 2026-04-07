@@ -88,7 +88,7 @@ echo "$PRODUCTS_RESPONSE" | jq '.' 2>/dev/null | head -30 || echo "$PRODUCTS_RES
 PRODUCTS_STATUS=$(echo "$PRODUCTS_RESPONSE" | jq -r '.success' 2>/dev/null)
 if [ "$PRODUCTS_STATUS" = "true" ]; then
     echo -e "${GREEN}✅ GET PRODUCTS: OK${NC}\n"
-    FIRST_PRODUCT_ID=$(echo "$PRODUCTS_RESPONSE" | jq -r '.data[0].id' 2>/dev/null)
+    FIRST_PRODUCT_ID=$(echo "$PRODUCTS_RESPONSE" | jq -r '.data.data[0].id // empty' 2>/dev/null)
 else
     echo -e "${YELLOW}⚠️  GET PRODUCTS: Pas de produits ou erreur${NC}\n"
     FIRST_PRODUCT_ID="1"

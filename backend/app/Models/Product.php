@@ -45,6 +45,11 @@ class Product extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function orderItems()
+    {
+        return $this->hasMany(OrderItem::class);
+    }
+
 
 
     public function scopeActive($query)

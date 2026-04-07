@@ -25,6 +25,9 @@ class ProductCollection extends ResourceCollection
             'current_page' => $this->currentPage(),
             'data' => $this->collection,
             'per_page' => $this->perPage(),
+            'last_page' => $this->lastPage(),
+            'from' => $this->firstItem(),
+            'to' => $this->lastItem(),
             'total' => $this->total(),
         ];
     }

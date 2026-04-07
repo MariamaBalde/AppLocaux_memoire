@@ -1,5 +1,23 @@
 <?php
 
+/**
+ * 🚀 Mail Configuration - BREVO
+ * 
+ * Current Configuration:
+ * - Default Mailer: SMTP (Brevo)
+ * - Host: smtp-relay.brevo.com
+ * - Port: 587 (TLS)
+ * - Capacity: 300 emails/day (free plan) or higher (paid plans)
+ * 
+ * Setup:
+ * 1. Visit https://app.brevo.com
+ * 2. Navigate to Settings → Account → SMTP
+ * 3. Generate a new SMTP key
+ * 4. Update .env with MAIL_USERNAME and MAIL_PASSWORD
+ * 
+ * @see https://app.brevo.com for documentation
+ */
+
 return [
 
     /*

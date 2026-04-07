@@ -26,13 +26,13 @@ class RegisterRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'confirmed', Password::min(8)],
-            'role' => ['required', 'in:client,vendor'],
+            'role' => ['required', 'in:client,vendeur'],
             'phone' => ['nullable', 'string', 'max:20'],
             'address' => ['nullable', 'string'],
             'country' => ['nullable', 'string', 'max:100'],
             
-            // Champs vendeur (requis si role = vendor)
-            'shop_name' => ['required_if:role,vendor', 'string', 'max:255'],
+            // Champs vendeur (requis si role = vendeur)
+            'shop_name' => ['required_if:role,vendeur', 'string', 'max:255'],
             'shop_description' => ['nullable', 'string'],
         ];
     }

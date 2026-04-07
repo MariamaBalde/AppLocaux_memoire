@@ -6,6 +6,10 @@ use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\VendorDashboardController;
+use App\Http\Controllers\Api\VendorOrderController;
 
 /*
 |--------------------------------------------------------------------------
@@ -26,6 +30,21 @@ Route::middleware('auth:api')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/me', [AuthController::class, 'me']);
     });
+
+    Route::prefix('user')->group(function () {
+        Route::get('/profile', [UserController::class, 'profile']);
+        Route::patch('/profile', [UserController::class, 'updateProfile']);
+        Route::post('/change-password', [UserController::class, 'changePassword']);
+
+        Route::get('/addresses', [UserController::class, 'addresses']);
+        Route::post('/addresses', [UserController::class, 'addAddress']);
+        Route::patch('/addresses/{id}', [UserController::class, 'updateAddress']);
+        Route::delete('/addresses/{id}', [UserController::class, 'deleteAddress']);
+
+        Route::get('/payment-methods', [UserController::class, 'paymentMethods']);
+        Route::post('/payment-methods', [UserController::class, 'addPaymentMethod']);
+        Route::delete('/payment-methods/{id}', [UserController::class, 'deletePaymentMethod']);
+    });
 });
 
 /*
@@ -43,7 +62,20 @@ Route::get('/products/{id}', [ProductController::class, 'show']);
 // Vendeur uniquement
 Route::middleware(['auth:api', 'vendeur'])->group(function () {
     Route::post('/products', [ProductController::class, 'store']);
-    Route::get('/vendor/products', [ProductController::class, 'myProducts']);
+    Route::get('/vendeur/products', [ProductController::class, 'myProducts']);
+
+    Route::prefix('vendor/dashboard')->group(function () {
+        Route::get('/overview', [VendorDashboardController::class, 'overview']);
+        Route::get('/stats', [VendorDashboardController::class, 'stats']);
+        Route::get('/revenue-weekly', [VendorDashboardController::class, 'revenueWeekly']);
+        Route::get('/destinations', [VendorDashboardController::class, 'destinations']);
+        Route::get('/recent-orders', [VendorDashboardController::class, 'recentOrders']);
+        Route::get('/top-products', [VendorDashboardController::class, 'topProducts']);
+    });
+
+    Route::get('/vendor/orders/{id}', [VendorOrderController::class, 'show']);
+    Route::patch('/vendor/orders/{id}/status', [VendorOrderController::class, 'updateStatus']);
+    Route::patch('/vendor/orders/{id}/tracking', [VendorOrderController::class, 'updateTracking']);
 });
 
 // Vendeur OU Admin
@@ -103,4 +135,37 @@ Route::middleware('auth:api')->prefix('orders')->group(function () {
     Route::get('/{id}', [OrderController::class, 'show']);                 // Détail d'une commande
     Route::patch('/{id}/cancel', [OrderController::class, 'cancel']);      // Annuler une commande
     Route::post('/{id}/confirm-payment', [OrderController::class, 'confirmPayment']); // Confirmer paiement
+});
+
+/*
+|--------------------------------------------------------------------------
+| API Routes - Dashboard Admin
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware(['auth:api', 'admin'])->prefix('admin')->group(function () {
+    // Statistiques du dashboard
+    Route::get('/dashboard/stats', [AdminController::class, 'dashboardStats']);
+    Route::get('/dashboard/advanced-stats', [AdminController::class, 'advancedStats']);
+    
+    // Graphiques
+    Route::get('/charts/sales-per-month', [AdminController::class, 'salesPerMonth']);
+    Route::get('/charts/products-by-category', [AdminController::class, 'productsByCategory']);
+    
+    // Top vendeurs et commandes récentes
+    Route::get('/top-vendors', [AdminController::class, 'topVendors']);
+    Route::get('/recent-orders', [AdminController::class, 'recentOrders']);
+    Route::get('/recent-users', [AdminController::class, 'recentUsers']);
+    
+    // Gestion des vendeurs
+    Route::get('/pending-vendors', [AdminController::class, 'pendingVendors']);
+    Route::post('/vendors/{id}/approve', [AdminController::class, 'approveVendor']);
+    Route::post('/vendors/{id}/reject', [AdminController::class, 'rejectVendor']);
+    
+    // Gestion des utilisateurs
+    Route::get('/users', [AdminController::class, 'users']);
+    Route::post('/users/{id}/toggle-status', [AdminController::class, 'toggleUserStatus']);
+
+    // Création de produit assistée par admin
+    Route::post('/products', [AdminController::class, 'createProductForVendor']);
 });
