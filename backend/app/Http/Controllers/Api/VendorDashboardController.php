@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\DataCollection;
+use App\Http\Resources\DataResource;
 use App\Services\VendorDashboardService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,7 +26,7 @@ class VendorDashboardController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $data,
+                'data' => new DataResource($data),
             ]);
         } catch (ValidationException $e) {
             return response()->json([
@@ -33,6 +35,7 @@ class VendorDashboardController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
+            report($e);
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors du chargement du dashboard vendeur',
@@ -50,10 +53,10 @@ class VendorDashboardController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => [
+                'data' => new DataResource([
                     'stats' => $overview['stats'],
                     'notifications' => $overview['notifications'],
-                ],
+                ]),
             ]);
         } catch (ValidationException $e) {
             return response()->json([
@@ -62,6 +65,7 @@ class VendorDashboardController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
+            report($e);
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la récupération des statistiques',
@@ -79,7 +83,7 @@ class VendorDashboardController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $overview['weeklyRevenue'],
+                'data' => new DataCollection(collect($overview['weeklyRevenue'])),
             ]);
         } catch (ValidationException $e) {
             return response()->json([
@@ -88,6 +92,7 @@ class VendorDashboardController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
+            report($e);
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la récupération des revenus hebdomadaires',
@@ -105,7 +110,7 @@ class VendorDashboardController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $overview['destinations'],
+                'data' => new DataResource($overview['destinations']),
             ]);
         } catch (ValidationException $e) {
             return response()->json([
@@ -114,6 +119,7 @@ class VendorDashboardController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
+            report($e);
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la récupération des destinations',
@@ -131,8 +137,8 @@ class VendorDashboardController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $overview['recentOrders'],
-                'pagination' => $overview['pagination'],
+                'data' => new DataCollection(collect($overview['recentOrders'])),
+                'pagination' => new DataResource($overview['pagination']),
             ]);
         } catch (ValidationException $e) {
             return response()->json([
@@ -141,6 +147,7 @@ class VendorDashboardController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
+            report($e);
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la récupération des commandes récentes',
@@ -158,7 +165,7 @@ class VendorDashboardController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $overview['topProducts'],
+                'data' => new DataCollection(collect($overview['topProducts'])),
             ]);
         } catch (ValidationException $e) {
             return response()->json([
@@ -167,6 +174,7 @@ class VendorDashboardController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
+            report($e);
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la récupération des top produits',
@@ -174,4 +182,3 @@ class VendorDashboardController extends Controller
         }
     }
 }
-

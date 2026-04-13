@@ -3,9 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreProductRequest;
+use App\Http\Requests\UploadProductImagesRequest;
+use App\Http\Requests\UpdateProductRequest;
+use App\Http\Requests\UpdateStockRequest;
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\ProductCollection;
+use App\Models\Product;
 use App\Services\Product\ProductService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -34,10 +40,10 @@ class ProductController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
+            report($e);
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la récupération des produits',
-                'error' => $e->getMessage()
+                'message' => 'Erreur lors de la récupération des produits'
             ], 500);
         }
     }
@@ -63,10 +69,10 @@ class ProductController extends Controller
                 'errors' => $e->errors()
             ], 404);
         } catch (\Exception $e) {
+            report($e);
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la récupération du produit',
-                'error' => $e->getMessage()
+                'message' => 'Erreur lors de la récupération du produit'
             ], 500);
         }
     }
@@ -75,11 +81,12 @@ class ProductController extends Controller
      * Crée un nouveau produit (vendeur uniquement)
      * POST /api/products
      */
-    public function store(Request $request): JsonResponse
+    public function store(StoreProductRequest $request): JsonResponse
     {
         try {
+            $this->authorize('create', Product::class);
             $product = $this->productService->createProduct(
-                $request->all(),
+                $request->validated(),
                 $request->user()
             );
 
@@ -95,11 +102,16 @@ class ProductController extends Controller
                 'message' => 'Erreur de validation',
                 'errors' => $e->errors()
             ], 422);
-        } catch (\Exception $e) {
+        } catch (AuthorizationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la création du produit',
-                'error' => $e->getMessage()
+                'message' => 'Action non autorisée',
+            ], 403);
+        } catch (\Exception $e) {
+            report($e);
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la création du produit'
             ], 500);
         }
     }
@@ -108,12 +120,16 @@ class ProductController extends Controller
      * Met à jour un produit (vendeur/admin)
      * PUT/PATCH /api/products/{id}
      */
-    public function update(Request $request, int $id): JsonResponse
+    public function update(UpdateProductRequest $request, int $id): JsonResponse
     {
         try {
+            $productModel = Product::find($id);
+            if ($productModel) {
+                $this->authorize('update', $productModel);
+            }
             $product = $this->productService->updateProduct(
                 $id,
-                $request->all(),
+                $request->validated(),
                 $request->user()
             );
 
@@ -129,11 +145,16 @@ class ProductController extends Controller
                 'message' => 'Erreur de validation',
                 'errors' => $e->errors()
             ], 422);
-        } catch (\Exception $e) {
+        } catch (AuthorizationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la mise à jour du produit',
-                'error' => $e->getMessage()
+                'message' => 'Action non autorisée',
+            ], 403);
+        } catch (\Exception $e) {
+            report($e);
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la mise à jour du produit'
             ], 500);
         }
     }
@@ -145,6 +166,10 @@ class ProductController extends Controller
     public function destroy(Request $request, int $id): JsonResponse
     {
         try {
+            $productModel = Product::find($id);
+            if ($productModel) {
+                $this->authorize('delete', $productModel);
+            }
             $result = $this->productService->deleteProduct(
                 $id,
                 $request->user()
@@ -161,11 +186,16 @@ class ProductController extends Controller
                 'message' => 'Erreur',
                 'errors' => $e->errors()
             ], 422);
-        } catch (\Exception $e) {
+        } catch (AuthorizationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la suppression du produit',
-                'error' => $e->getMessage()
+                'message' => 'Action non autorisée',
+            ], 403);
+        } catch (\Exception $e) {
+            report($e);
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la suppression du produit'
             ], 500);
         }
     }
@@ -177,6 +207,10 @@ class ProductController extends Controller
     public function toggle(Request $request, int $id): JsonResponse
     {
         try {
+            $productModel = Product::find($id);
+            if ($productModel) {
+                $this->authorize('toggle', $productModel);
+            }
             $product = $this->productService->toggleProductStatus(
                 $id,
                 $request->user()
@@ -194,11 +228,16 @@ class ProductController extends Controller
                 'message' => 'Erreur',
                 'errors' => $e->errors()
             ], 422);
-        } catch (\Exception $e) {
+        } catch (AuthorizationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la modification du statut',
-                'error' => $e->getMessage()
+                'message' => 'Action non autorisée',
+            ], 403);
+        } catch (\Exception $e) {
+            report($e);
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la modification du statut'
             ], 500);
         }
     }
@@ -228,10 +267,10 @@ class ProductController extends Controller
                 'errors' => $e->errors()
             ], 403);
         } catch (\Exception $e) {
+            report($e);
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la récupération des produits',
-                'error' => $e->getMessage()
+                'message' => 'Erreur lors de la récupération des produits'
             ], 500);
         }
     }
@@ -240,16 +279,18 @@ class ProductController extends Controller
      * Met à jour le stock d'un produit
      * PATCH /api/products/{id}/stock
      */
-    public function updateStock(Request $request, int $id): JsonResponse
+    public function updateStock(UpdateStockRequest $request, int $id): JsonResponse
     {
         try {
-            $request->validate([
-                'quantity' => 'required|integer|min:0'
-            ]);
+            $productModel = Product::find($id);
+            if ($productModel) {
+                $this->authorize('updateStock', $productModel);
+            }
+            $validated = $request->validated();
 
             $product = $this->productService->updateStock(
                 $id,
-                $request->quantity,
+                (int) $validated['quantity'],
                 $request->user()
             );
 
@@ -265,11 +306,16 @@ class ProductController extends Controller
                 'message' => 'Erreur de validation',
                 'errors' => $e->errors()
             ], 422);
-        } catch (\Exception $e) {
+        } catch (AuthorizationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la mise à jour du stock',
-                'error' => $e->getMessage()
+                'message' => 'Action non autorisée',
+            ], 403);
+        } catch (\Exception $e) {
+            report($e);
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la mise à jour du stock'
             ], 500);
         }
     }
@@ -290,10 +336,10 @@ class ProductController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
+            report($e);
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la recherche',
-                'error' => $e->getMessage()
+                'message' => 'Erreur lors de la recherche'
             ], 500);
         }
     }
@@ -314,10 +360,43 @@ class ProductController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
+            report($e);
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la récupération des nouveautés',
-                'error' => $e->getMessage()
+                'message' => 'Erreur lors de la récupération des nouveautés'
+            ], 500);
+        }
+    }
+
+    /**
+     * Upload/ajout d'images produit (vendeur)
+     * POST /api/seller/products/{id}/images
+     */
+    public function uploadImages(UploadProductImagesRequest $request, int $id): JsonResponse
+    {
+        try {
+            $product = $this->productService->addProductImages(
+                $id,
+                $request->validated(),
+                $request->user()
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Images mises à jour avec succès',
+                'data' => new ProductResource($product),
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur de validation',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            report($e);
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la mise à jour des images',
             ], 500);
         }
     }

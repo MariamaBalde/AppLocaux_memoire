@@ -12,11 +12,22 @@ class CategoryService
     /**
      * Liste toutes les catégories
      */
-    public function getAllCategories()
+    public function getAllCategories(array $filters = [])
     {
-        return Category::withCount('products')
-            ->orderBy('name', 'asc')
-            ->get();
+        $query = Category::withCount('products')
+            ->orderBy('name', 'asc');
+
+        if (!empty($filters['search'])) {
+            $term = trim((string) $filters['search']);
+            $query->where(function ($subQuery) use ($term) {
+                $subQuery->where('name', 'like', '%' . $term . '%')
+                    ->orWhere('description', 'like', '%' . $term . '%');
+            });
+        }
+
+        $perPage = min(max((int) ($filters['per_page'] ?? 15), 1), 100);
+
+        return $query->paginate($perPage);
     }
 
     /**
@@ -65,19 +76,12 @@ class CategoryService
             ]);
         }
 
-        // Valider les données
-        $validated = validator($data, [
-            'name' => 'required|string|max:255|unique:categories,name',
-            'description' => 'nullable|string',
-            'icon' => 'nullable|string|max:10', // Emoji ou nom icône
-        ])->validate();
-
         // Créer la catégorie
         $category = Category::create([
-            'name' => $validated['name'],
-            'slug' => Str::slug($validated['name']),
-            'description' => $validated['description'] ?? null,
-            'icon' => $validated['icon'] ?? null,
+            'name' => $data['name'],
+            'slug' => Str::slug($data['name']),
+            'description' => $data['description'] ?? null,
+            'icon' => $data['icon'] ?? null,
         ]);
 
         return $category;
@@ -103,20 +107,13 @@ class CategoryService
             ]);
         }
 
-        // Valider les données
-        $validated = validator($data, [
-            'name' => 'sometimes|string|max:255|unique:categories,name,' . $id,
-            'description' => 'nullable|string',
-            'icon' => 'nullable|string|max:10',
-        ])->validate();
-
         // Si le nom change, mettre à jour le slug
-        if (isset($validated['name'])) {
-            $validated['slug'] = Str::slug($validated['name']);
+        if (isset($data['name'])) {
+            $data['slug'] = Str::slug($data['name']);
         }
 
         // Mettre à jour
-        $category->update($validated);
+        $category->update($data);
 
         return $category->load('products');
     }
@@ -174,11 +171,15 @@ class CategoryService
 
         // Tri
         $sortBy = $filters['sort_by'] ?? 'created_at';
-        $sortOrder = $filters['sort_order'] ?? 'desc';
+        $sortOrder = strtolower((string) ($filters['sort_order'] ?? 'desc')) === 'asc' ? 'asc' : 'desc';
+        $allowedSorts = ['created_at', 'updated_at', 'name', 'price', 'stock'];
+        if (!in_array($sortBy, $allowedSorts, true)) {
+            $sortBy = 'created_at';
+        }
         $query->orderBy($sortBy, $sortOrder);
 
         // Pagination
-        $perPage = $filters['per_page'] ?? 12;
+        $perPage = min(max((int) ($filters['per_page'] ?? 12), 1), 100);
 
         return $query->paginate($perPage);
     }

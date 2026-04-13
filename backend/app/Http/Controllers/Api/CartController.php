@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\AddToCartRequest;
+use App\Http\Requests\UpdateCartItemRequest;
 use App\Services\Cart\CartService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -14,6 +16,23 @@ class CartController extends Controller
     public function __construct(CartService $cartService)
     {
         $this->cartService = $cartService;
+    }
+
+    private function isStockConflict(array $errors): bool
+    {
+        foreach ($errors as $messages) {
+            foreach ((array) $messages as $message) {
+                $normalized = mb_strtolower((string) $message);
+                if (str_contains($normalized, 'stock insuffisant')
+                    || str_contains($normalized, 'n\'est pas disponible')
+                    || str_contains($normalized, 'non disponible')
+                ) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -53,10 +72,10 @@ class CartController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
+            report($e);
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la récupération du panier',
-                'error' => $e->getMessage()
+                'message' => 'Erreur lors de la récupération du panier'
             ], 500);
         }
     }
@@ -65,10 +84,10 @@ class CartController extends Controller
      * Ajoute un produit au panier
      * POST /api/cart
      */
-    public function store(Request $request): JsonResponse
+    public function store(AddToCartRequest $request): JsonResponse
     {
         try {
-            $result = $this->cartService->addToCart($request->user(), $request->all());
+            $result = $this->cartService->addToCart($request->user(), $request->validated());
 
             return response()->json([
                 'success' => true,
@@ -77,16 +96,19 @@ class CartController extends Controller
             ], 201);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
+            $errors = $e->errors();
+            $status = $this->isStockConflict($errors) ? 409 : 422;
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur de validation',
-                'errors' => $e->errors()
-            ], 422);
+                'message' => $status === 409 ? 'Conflit de stock' : 'Erreur de validation',
+                'errors' => $errors
+            ], $status);
         } catch (\Exception $e) {
+            report($e);
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de l\'ajout au panier',
-                'error' => $e->getMessage()
+                'message' => 'Erreur lors de l\'ajout au panier'
             ], 500);
         }
     }
@@ -95,17 +117,15 @@ class CartController extends Controller
      * Met à jour la quantité d'un article
      * PATCH /api/cart/{id}
      */
-    public function update(Request $request, int $id): JsonResponse
+    public function update(UpdateCartItemRequest $request, int $id): JsonResponse
     {
         try {
-            $request->validate([
-                'quantity' => 'required|integer|min:1'
-            ]);
+            $validated = $request->validated();
 
             $result = $this->cartService->updateCartItem(
                 $request->user(),
                 $id,
-                $request->quantity
+                (int) $validated['quantity']
             );
 
             return response()->json([
@@ -115,16 +135,19 @@ class CartController extends Controller
             ], 200);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
+            $errors = $e->errors();
+            $status = $this->isStockConflict($errors) ? 409 : 422;
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur de validation',
-                'errors' => $e->errors()
-            ], 422);
+                'message' => $status === 409 ? 'Conflit de stock' : 'Erreur de validation',
+                'errors' => $errors
+            ], $status);
         } catch (\Exception $e) {
+            report($e);
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la mise à jour',
-                'error' => $e->getMessage()
+                'message' => 'Erreur lors de la mise à jour'
             ], 500);
         }
     }
@@ -150,10 +173,10 @@ class CartController extends Controller
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
+            report($e);
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la suppression',
-                'error' => $e->getMessage()
+                'message' => 'Erreur lors de la suppression'
             ], 500);
         }
     }
@@ -173,10 +196,10 @@ class CartController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
+            report($e);
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors du vidage du panier',
-                'error' => $e->getMessage()
+                'message' => 'Erreur lors du vidage du panier'
             ], 500);
         }
     }
@@ -196,10 +219,10 @@ class CartController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
+            report($e);
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la vérification',
-                'error' => $e->getMessage()
+                'message' => 'Erreur lors de la vérification'
             ], 500);
         }
     } 

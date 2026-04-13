@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\Vendeur;
 use App\Models\Category;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class AdminService
@@ -105,13 +106,14 @@ class AdminService
      * TOP VENDEURS
      * ═══════════════════════════════════════════════════════
      */
-    public function getTopVendors(int $limit = 10)
+    public function getTopVendors(array $filters = [])
     {
+        $perPage = min(max((int) ($filters['per_page'] ?? 10), 1), 100);
+
         return Vendeur::with('user')
             ->orderBy('total_sales', 'desc')
-            ->limit($limit)
-            ->get()
-            ->map(function ($vendeur) {
+            ->paginate($perPage)
+            ->through(function ($vendeur) {
                 return [
                     'id' => $vendeur->id,
                     'shop_name' => $vendeur->shop_name,
@@ -128,12 +130,13 @@ class AdminService
      * DERNIÈRES COMMANDES
      * ═══════════════════════════════════════════════════════
      */
-    public function getRecentOrders(int $limit = 10)
+    public function getRecentOrders(array $filters = [])
     {
+        $perPage = min(max((int) ($filters['per_page'] ?? 10), 1), 100);
+
         return Order::with(['user', 'payment'])
             ->orderBy('created_at', 'desc')
-            ->limit($limit)
-            ->get();
+            ->paginate($perPage);
     }
 
     /**
@@ -141,12 +144,13 @@ class AdminService
      * DERNIERS UTILISATEURS INSCRITS
      * ═══════════════════════════════════════════════════════
      */
-    public function getRecentUsers(int $limit = 10)
+    public function getRecentUsers(array $filters = [])
     {
+        $perPage = min(max((int) ($filters['per_page'] ?? 10), 1), 100);
+
         return User::with('vendeur')
             ->orderBy('created_at', 'desc')
-            ->limit($limit)
-            ->get();
+            ->paginate($perPage);
     }
 
     /**
@@ -154,12 +158,14 @@ class AdminService
      * VENDEURS EN ATTENTE DE VÉRIFICATION
      * ═══════════════════════════════════════════════════════
      */
-    public function getPendingVendors()
+    public function getPendingVendors(array $filters = [])
     {
+        $perPage = min(max((int) ($filters['per_page'] ?? 10), 1), 100);
+
         return Vendeur::with('user')
             ->where('verified', false)
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate($perPage);
     }
 
     /**
@@ -394,5 +400,249 @@ class AdminService
         $perPage = $filters['per_page'] ?? 20;
 
         return $query->paginate($perPage);
+    }
+
+    /**
+     * ═══════════════════════════════════════════════════════
+     * GESTION PRODUITS (ADMIN)
+     * ═══════════════════════════════════════════════════════
+     */
+    public function getAllProducts(array $filters = [])
+    {
+        $query = Product::with(['vendeur.user', 'category']);
+
+        if (isset($filters['is_active'])) {
+            $isActive = filter_var($filters['is_active'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($isActive !== null) {
+                $query->where('is_active', $isActive);
+            }
+        }
+
+        if (!empty($filters['search'])) {
+            $term = trim((string) $filters['search']);
+            $query->where(function ($q) use ($term) {
+                $q->where('name', 'like', '%' . $term . '%')
+                    ->orWhere('description', 'like', '%' . $term . '%')
+                    ->orWhereHas('vendeur', function ($vq) use ($term) {
+                        $vq->where('shop_name', 'like', '%' . $term . '%');
+                    });
+            });
+        }
+
+        if (!empty($filters['category_id'])) {
+            $query->where('category_id', (int) $filters['category_id']);
+        }
+
+        if (!empty($filters['vendeur_id'])) {
+            $query->where('vendeur_id', (int) $filters['vendeur_id']);
+        }
+
+        if (!empty($filters['stock_status'])) {
+            if ($filters['stock_status'] === 'in_stock') {
+                $query->where('stock', '>', 5);
+            } elseif ($filters['stock_status'] === 'low_stock') {
+                $query->whereBetween('stock', [1, 5]);
+            } elseif ($filters['stock_status'] === 'out_of_stock') {
+                $query->where('stock', '<=', 0);
+            }
+        }
+
+        $sortBy = $filters['sort_by'] ?? 'created_at';
+        $sortOrder = strtolower((string) ($filters['sort_order'] ?? 'desc')) === 'asc' ? 'asc' : 'desc';
+        $allowedSorts = ['created_at', 'updated_at', 'price', 'stock', 'name'];
+        if (!in_array($sortBy, $allowedSorts, true)) {
+            $sortBy = 'created_at';
+        }
+        $query->orderBy($sortBy, $sortOrder);
+
+        $limit = max(1, min((int) ($filters['limit'] ?? 100), 200));
+
+        return $query->limit($limit)->get()->map(function (Product $product) {
+            return $this->enrichProductData($product);
+        })->values();
+    }
+
+    public function updateProductStatus(int $productId, string $status, User $admin): array
+    {
+        if (!$admin->isAdmin()) {
+            throw ValidationException::withMessages([
+                'permission' => ['Seuls les administrateurs peuvent modifier le statut des produits.'],
+            ]);
+        }
+
+        if (!in_array($status, ['active', 'inactive'], true)) {
+            throw ValidationException::withMessages([
+                'status' => ['Le statut doit être active ou inactive.'],
+            ]);
+        }
+
+        $product = Product::find($productId);
+        if (!$product) {
+            throw ValidationException::withMessages([
+                'product' => ['Produit non trouvé.'],
+            ]);
+        }
+
+        $product->update([
+            'is_active' => $status === 'active',
+            'updated_by' => $admin->id,
+        ]);
+
+        return [
+            'message' => $status === 'active' ? 'Produit activé' : 'Produit désactivé',
+            'data' => $this->enrichProductData($product->fresh(['vendeur.user', 'category'])),
+        ];
+    }
+
+    public function toggleFeaturedProduct(int $productId, User $admin): array
+    {
+        if (!$admin->isAdmin()) {
+            throw ValidationException::withMessages([
+                'permission' => ['Seuls les administrateurs peuvent mettre un produit en avant.'],
+            ]);
+        }
+
+        if (!Schema::hasColumn('products', 'featured')) {
+            throw ValidationException::withMessages([
+                'featured' => ['La colonne featured est absente. Lancez la migration dédiée.'],
+            ]);
+        }
+
+        $product = Product::find($productId);
+        if (!$product) {
+            throw ValidationException::withMessages([
+                'product' => ['Produit non trouvé.'],
+            ]);
+        }
+
+        $product->update([
+            'featured' => !((bool) $product->featured),
+            'updated_by' => $admin->id,
+        ]);
+
+        return [
+            'message' => $product->featured ? 'Produit mis en avant' : 'Produit retiré de la mise en avant',
+            'data' => $this->enrichProductData($product->fresh(['vendeur.user', 'category'])),
+        ];
+    }
+
+    public function deleteProduct(int $productId, User $admin): array
+    {
+        if (!$admin->isAdmin()) {
+            throw ValidationException::withMessages([
+                'permission' => ['Seuls les administrateurs peuvent supprimer des produits.'],
+            ]);
+        }
+
+        $product = Product::find($productId);
+        if (!$product) {
+            throw ValidationException::withMessages([
+                'product' => ['Produit non trouvé.'],
+            ]);
+        }
+
+        $hasPendingOrders = DB::table('order_items')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->where('order_items.product_id', $product->id)
+            ->whereIn('orders.status', ['pending'])
+            ->exists();
+
+        if ($hasPendingOrders) {
+            throw ValidationException::withMessages([
+                'product' => ['Impossible de supprimer ce produit: il est lié à des commandes en attente.'],
+            ]);
+        }
+
+        $product->delete();
+
+        return ['message' => 'Produit supprimé avec succès'];
+    }
+
+    private function enrichProductData(Product $product): array
+    {
+        $orderItems = $product->orderItems()
+            ->whereHas('order', function ($q) {
+                $q->whereIn('status', ['processing', 'shipped', 'delivered']);
+            })
+            ->with(['order.user:id,country'])
+            ->get(['id', 'order_id', 'quantity', 'product_id']);
+
+        $salesCount = (int) $orderItems->sum('quantity');
+        $orderCount = (int) $orderItems->pluck('order_id')->filter()->unique()->count();
+        $diasporaOrderCount = (int) $orderItems
+            ->filter(function ($item) {
+                return $this->isDiasporaOrder($item->order);
+            })
+            ->pluck('order_id')
+            ->filter()
+            ->unique()
+            ->count();
+
+        $diasporaPercent = $orderCount > 0
+            ? round(($diasporaOrderCount / $orderCount) * 100, 2)
+            : 0;
+
+        $satisfaction = (float) ($product->vendeur?->rating ?? 0);
+
+        $stockStatus = 'in_stock';
+        $stockColor = 'green';
+        if ((int) $product->stock <= 0) {
+            $stockStatus = 'out_of_stock';
+            $stockColor = 'red';
+        } elseif ((int) $product->stock <= 5) {
+            $stockStatus = 'low_stock';
+            $stockColor = 'orange';
+        }
+
+        return [
+            'id' => $product->id,
+            'name' => $product->name,
+            'description' => $product->description,
+            'price' => (float) $product->price,
+            'stock' => (int) $product->stock,
+            'stock_status' => $stockStatus,
+            'stock_color' => $stockColor,
+            'images' => $product->images ?? [],
+            'category' => [
+                'id' => $product->category?->id,
+                'name' => $product->category?->name,
+            ],
+            'vendor' => [
+                'id' => $product->vendeur?->id,
+                'name' => $product->vendeur?->shop_name,
+                'user_id' => $product->vendeur?->user_id,
+                'rating' => (float) ($product->vendeur?->rating ?? 0),
+                'verified' => (bool) ($product->vendeur?->verified ?? false),
+                'pending_review' => !((bool) ($product->vendeur?->verified ?? false)),
+            ],
+            'is_active' => (bool) $product->is_active,
+            'featured' => (bool) ($product->featured ?? false),
+            'performance' => [
+                'sales' => $salesCount,
+                'satisfaction' => round($satisfaction, 1),
+                'diaspora_percent' => $diasporaPercent,
+            ],
+            'created_at' => $product->created_at,
+            'updated_at' => $product->updated_at,
+        ];
+    }
+
+    private function isDiasporaOrder(?Order $order): bool
+    {
+        if (!$order) {
+            return false;
+        }
+
+        $country = strtoupper((string) ($order->user?->country ?? ''));
+        if ($country !== '') {
+            return !in_array($country, ['SN', 'SENEGAL', 'SÉNÉGAL'], true);
+        }
+
+        $address = strtolower((string) $order->shipping_address);
+        if ($address === '') {
+            return false;
+        }
+
+        return strpos($address, 'senegal') === false && strpos($address, 'sénégal') === false;
     }
 }

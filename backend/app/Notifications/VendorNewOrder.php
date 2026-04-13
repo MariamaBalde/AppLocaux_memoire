@@ -65,7 +65,7 @@ class VendorNewOrder extends Notification implements ShouldQueue
             ->line('1. Vérifier la disponibilité des produits')
             ->line('2. Préparer la livraison')
             ->line('3. Ajouter un numéro de suivi')
-            ->action('Voir la commande', url(env('FRONTEND_URL') . '/vendor/orders/' . $this->order->id))
+            ->action('Voir la commande', url(env('FRONTEND_URL') . '/vendeur/orders/' . $this->order->id))
             ->line('Merci de votre professionnel!')
             ->line('L\'équipe AfriShop');
     }

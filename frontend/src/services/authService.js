@@ -1,4 +1,5 @@
 import api from './api';
+import { authStorage } from './authStorage';
 
 function normalizeAuthPayload(payload) {
   const root = payload || {};
@@ -9,6 +10,8 @@ function normalizeAuthPayload(payload) {
     message: root.message || data.message,
     user: data.user || root.user || null,
     token: data.access_token || data.token || root.access_token || root.token || null,
+    requiresEmailVerification: Boolean(data.requires_email_verification || root.requires_email_verification),
+    verificationSent: Boolean(data.verification_sent || root.verification_sent),
   };
 }
 
@@ -20,14 +23,22 @@ export const authService = {
 
       const normalized = normalizeAuthPayload(response.data);
 
-      if (normalized.success && normalized.token && normalized.user) {
-        localStorage.setItem('token', normalized.token);
-        localStorage.setItem('user', JSON.stringify(normalized.user));
+      if (normalized.success && normalized.user) {
+        if (normalized.token) {
+          authStorage.setToken(normalized.token);
+          authStorage.setUser(normalized.user);
+        } else {
+          authStorage.clear();
+          authStorage.setUser(normalized.user);
+        }
+
         return {
           success: true,
           user: normalized.user,
-          token: normalized.token,
+          token: normalized.token || null,
           message: normalized.message,
+          requiresEmailVerification: normalized.requiresEmailVerification,
+          verificationSent: normalized.verificationSent,
         };
       }
 
@@ -44,14 +55,22 @@ export const authService = {
 
       const normalized = normalizeAuthPayload(response.data);
 
-      if (normalized.success && normalized.token && normalized.user) {
-        localStorage.setItem('token', normalized.token);
-        localStorage.setItem('user', JSON.stringify(normalized.user));
+      if (normalized.success && normalized.user) {
+        if (normalized.token) {
+          authStorage.setToken(normalized.token);
+          authStorage.setUser(normalized.user);
+        } else {
+          authStorage.clear();
+          authStorage.setUser(normalized.user);
+        }
+
         return {
           success: true,
           user: normalized.user,
-          token: normalized.token,
+          token: normalized.token || null,
           message: normalized.message,
+          requiresEmailVerification: normalized.requiresEmailVerification,
+          verificationSent: normalized.verificationSent,
         };
       }
 
@@ -65,23 +84,21 @@ export const authService = {
   async logout() {
     try {
       await api.post('/auth/logout');
-    } catch (error) {
-      console.error('Erreur lors de la déconnexion:', error);
+    } catch {
+      // Même en cas d'échec API, on purge la session locale.
     } finally {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      authStorage.clear();
     }
   },
 
   // Récupérer l'utilisateur actuel
   getCurrentUser() {
-    const user = localStorage.getItem('user');
-    return user ? JSON.parse(user) : null;
+    return authStorage.getUser();
   },
 
   // Vérifier si l'utilisateur est authentifié
   isAuthenticated() {
-    return !!localStorage.getItem('token');
+    return Boolean(authStorage.getToken() || authStorage.getUser());
   },
 
   // Récupérer le profil depuis l'API
@@ -91,10 +108,64 @@ export const authService = {
       if (response.data.success) {
         const user = response.data.data || response.data.user;
         if (user) {
-          localStorage.setItem('user', JSON.stringify(user));
+          authStorage.setUser(user);
           return user;
         }
       }
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  async bootstrapAuth() {
+    const cachedUser = authStorage.getUser();
+    const hasToken = Boolean(authStorage.getToken());
+
+    if (!hasToken) {
+      if (!cachedUser) {
+        return { isAuthenticated: false, user: null };
+      }
+      authStorage.clear();
+      return { isAuthenticated: false, user: null };
+    }
+
+    try {
+      const user = await this.getProfile();
+      return {
+        isAuthenticated: Boolean(user),
+        user: user || null,
+      };
+    } catch {
+      if (cachedUser && hasToken) {
+        return { isAuthenticated: true, user: cachedUser };
+      }
+      authStorage.clear();
+      return { isAuthenticated: false, user: null };
+    }
+  },
+
+  async forgotPassword(email) {
+    const enabled = process.env.REACT_APP_ENABLE_PASSWORD_RESET_API !== 'false';
+    if (!enabled) {
+      throw new Error('Réinitialisation de mot de passe non disponible sur cette API pour le moment.');
+    }
+    const response = await api.post('/password/forgot', { email });
+    return response.data;
+  },
+
+  async resetPassword(payload) {
+    const enabled = process.env.REACT_APP_ENABLE_PASSWORD_RESET_API !== 'false';
+    if (!enabled) {
+      throw new Error('Réinitialisation de mot de passe non disponible sur cette API pour le moment.');
+    }
+    const response = await api.post('/password/reset', payload);
+    return response.data;
+  },
+
+  async resendVerification() {
+    try {
+      const response = await api.post('/auth/email/verification-notification');
+      return response.data;
     } catch (error) {
       throw error.response?.data || error;
     }

@@ -9,6 +9,7 @@ use App\Models\Payment;
 use App\Models\Cart;
 use App\Models\Product;
 use App\Models\User;
+use App\Services\Shipping\ShippingService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -17,15 +18,21 @@ class OrderService
 {
     private const VENDOR_ALLOWED_STATUSES = ['processing', 'shipped', 'delivered'];
 
+    public function __construct(private ShippingService $shippingService)
+    {
+    }
+
     private function resolveVendorOrder(User $user, int $id): Order
     {
-        if (!$user->isVendeur() || !$user->vendeur) {
+        $vendor = $user->vendeur()->first();
+
+        if (!$user->isVendeur() || !$vendor) {
             throw ValidationException::withMessages([
                 'role' => ['Seuls les vendeurs peuvent accéder à cette ressource.'],
             ]);
         }
 
-        $vendeurId = $user->vendeur->id;
+        $vendeurId = (int) $vendor->id;
 
         $order = Order::with([
             'user:id,name,email,phone',
@@ -56,14 +63,6 @@ class OrderService
      */
     public function createOrderFromCart(User $user, array $data)
     {
-        // Valider les données
-        $validated = validator($data, [
-            'shipping_address' => 'required|string',
-            'shipping_method' => 'required|string|in:standard,express,pickup',
-            'payment_method' => 'required|string|in:wave,orange_money,stripe,paypal,visa',
-            'notes' => 'nullable|string',
-        ])->validate();
-
         DB::beginTransaction();
 
         try {
@@ -107,7 +106,7 @@ class OrderService
                 return (float) ($product?->price ?? 0) * $item->quantity;
             });
 
-            $shippingCost = $this->calculateShippingCost($validated['shipping_method'], (float) $subtotal);
+            $shippingCost = $this->calculateShippingCost((string) $data['shipping_method'], (float) $subtotal);
             $total = (float) $subtotal + $shippingCost;
 
             // Générer un numéro de commande robuste en concurrence
@@ -121,10 +120,10 @@ class OrderService
                 'order_number' => $orderNumber,
                 'total' => $total,
                 'status' => 'pending',
-                'shipping_method' => $validated['shipping_method'],
-                'shipping_address' => $validated['shipping_address'],
+                'shipping_method' => $data['shipping_method'],
+                'shipping_address' => $data['shipping_address'],
                 'shipping_cost' => $shippingCost,
-                'notes' => $validated['notes'] ?? null,
+                'notes' => $data['notes'] ?? null,
             ]);
 
             // Créer les items de commande
@@ -148,7 +147,7 @@ class OrderService
             $payment = Payment::create([
                 'order_id' => $order->id,
                 'amount' => $total,
-                'method' => $validated['payment_method'],
+                'method' => $data['payment_method'],
                 'status' => 'pending',
             ]);
 
@@ -323,10 +322,6 @@ class OrderService
             ]);
         }
 
-        $validated = validator($data, [
-            'transaction_id' => 'nullable|string|max:255',
-        ])->validate();
-
         if ($order->payment->status === 'completed') {
             throw ValidationException::withMessages([
                 'payment' => ['Le paiement a déjà été confirmé.'],
@@ -336,7 +331,7 @@ class OrderService
         // Mettre à jour le paiement
         $order->payment->update([
             'status' => 'completed',
-            'transaction_id' => $validated['transaction_id'] ?? 'TXN-' . time(),
+            'transaction_id' => $data['transaction_id'] ?? 'TXN-' . time(),
             'paid_at' => now(),
         ]);
 
@@ -357,6 +352,36 @@ class OrderService
     public function getVendorOrderById(User $user, int $id)
     {
         return $this->resolveVendorOrder($user, $id);
+    }
+
+    public function getVendorOrders(User $user, array $filters = [])
+    {
+        $vendor = $user->vendeur()->first();
+
+        if (!$user->isVendeur() || !$vendor) {
+            throw ValidationException::withMessages([
+                'role' => ['Seuls les vendeurs peuvent accéder à cette ressource.'],
+            ]);
+        }
+
+        $query = Order::with(['user:id,name,email,phone', 'payment'])
+            ->whereHas('items', function ($q) use ($vendor) {
+                $q->where('vendeur_id', $vendor->id);
+            });
+
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        $perPage = min(max((int) ($filters['per_page'] ?? 10), 1), 100);
+        $orders = $query->latest()->paginate($perPage);
+
+        $orders->getCollection()->transform(function (Order $order) use ($vendor) {
+            $order->setRelation('items', $order->items()->where('vendeur_id', $vendor->id)->with('product:id,name,images')->get());
+            return $order;
+        });
+
+        return $orders;
     }
 
     public function updateVendorOrderStatus(User $user, int $id, string $targetStatus)
@@ -423,5 +448,53 @@ class OrderService
         ]);
 
         return $this->resolveVendorOrder($user, $id);
+    }
+
+    public function updateOrderShipping(User $user, int $id, array $data): Order
+    {
+        $order = Order::with(['items.product', 'payment'])->find($id);
+
+        if (!$order) {
+            throw ValidationException::withMessages([
+                'order' => ['Commande non trouvée.'],
+            ]);
+        }
+
+        if (!$user->isAdmin() && $order->user_id !== $user->id) {
+            throw ValidationException::withMessages([
+                'permission' => ['Vous n\'êtes pas autorisé à modifier cette commande.'],
+            ]);
+        }
+
+        if ($order->status !== 'pending') {
+            throw ValidationException::withMessages([
+                'status' => ['La livraison peut uniquement être modifiée pour une commande en attente.'],
+            ]);
+        }
+
+        $subtotal = (float) $order->items->sum('subtotal');
+        $shippingCost = $this->shippingService->estimate(
+            $data['shipping_method'],
+            $data['destination_country'],
+            $subtotal,
+            isset($data['weight_kg']) ? (float) $data['weight_kg'] : null
+        );
+
+        $newTotal = round($subtotal + $shippingCost, 2);
+
+        $order->update([
+            'shipping_method' => $data['shipping_method'],
+            'shipping_address' => $data['shipping_address'],
+            'shipping_cost' => $shippingCost,
+            'total' => $newTotal,
+        ]);
+
+        if ($order->payment) {
+            $order->payment->update([
+                'amount' => $newTotal,
+            ]);
+        }
+
+        return $order->fresh(['items.product', 'payment']);
     }
 }

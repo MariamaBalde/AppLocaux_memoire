@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { CreditCard, Truck, CheckCircle } from 'lucide-react';
 import Navbar from '../../components/common/Navbar';
 import Button from '../../components/common/Button';
@@ -9,8 +11,12 @@ import { resolveImageUrl } from '../../utils/imageUrl';
 import { SHIPPING_METHODS, PAYMENT_METHODS } from '../../utils/constants';
 import { cartService } from '../../services/cartService';
 import { orderService } from '../../services/orderService';
+import { paymentService } from '../../services/paymentService';
+import { shippingService } from '../../services/shippingService';
 import { authService } from '../../services/authService';
+import { useI18n } from '../../context/I18nContext';
 import toast from 'react-hot-toast';
+import { checkoutSchema } from '../../utils/formSchemas';
 
 function getErrorMessage(error, fallbackMessage) {
   if (!error) return fallbackMessage;
@@ -25,6 +31,22 @@ function getErrorMessage(error, fallbackMessage) {
     if (typeof firstValue === 'string') return firstValue;
   }
   return fallbackMessage;
+}
+
+function normalizeFieldErrors(error) {
+  const errors = error?.errors;
+  if (!errors || typeof errors !== 'object') return {};
+
+  const normalized = {};
+  Object.entries(errors).forEach(([field, messages]) => {
+    if (Array.isArray(messages) && messages[0]) {
+      normalized[field] = String(messages[0]);
+    } else if (typeof messages === 'string') {
+      normalized[field] = messages;
+    }
+  });
+
+  return normalized;
 }
 
 function normalizeCart(payload) {
@@ -44,21 +66,40 @@ function getItemProduct(item) {
   return item?.product || item;
 }
 
+function toBackendShippingMethod(method) {
+  if (method === 'local') return 'standard';
+  if (method === 'international') return 'express';
+  if (method === 'diaspora') return 'pickup';
+  return method || 'standard';
+}
+
 export default function Checkout() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [cart, setCart] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
-
-  const [formData, setFormData] = useState({
-    shipping_address: '',
-    shipping_city: '',
-    shipping_country: 'Sénégal',
-    shipping_phone: '',
-    shipping_method: 'standard',
-    payment_method: 'wave',
-    notes: '',
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [estimatedShippingCost, setEstimatedShippingCost] = useState(0);
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    trigger,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(checkoutSchema),
+    defaultValues: {
+      shipping_address: '',
+      shipping_city: '',
+      shipping_country: 'Sénégal',
+      shipping_phone: '',
+      shipping_method: 'local',
+      payment_method: 'wave',
+      notes: '',
+    },
   });
 
   useEffect(() => {
@@ -91,24 +132,57 @@ export default function Checkout() {
   const prefillUserData = () => {
     const user = authService.getCurrentUser();
     if (user) {
-      setFormData((prev) => ({
-        ...prev,
-        shipping_address: user.address || '',
-        shipping_country: user.country || 'Sénégal',
-        shipping_phone: user.phone || '',
-      }));
+      setValue('shipping_address', user.address || '');
+      setValue('shipping_country', user.country || 'Sénégal');
+      setValue('shipping_phone', user.phone || '');
     }
   };
+  const formData = watch();
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+  useEffect(() => {
+    let active = true;
+
+    const estimateShipping = async () => {
+      if (!cart) return;
+
+      try {
+        const destinationRaw = String(formData.shipping_country || '').trim();
+        const destinationCountry = destinationRaw.length === 2 ? destinationRaw.toUpperCase() : 'SN';
+
+        const cost = await shippingService.estimate({
+          shippingMethod: toBackendShippingMethod(formData.shipping_method),
+          destinationCountry,
+          subtotal: Number(cart.subtotal || 0),
+          weightKg: 1,
+        });
+        if (active) {
+          setEstimatedShippingCost(Number.isFinite(cost) ? cost : 0);
+        }
+      } catch {
+        if (active) {
+          // Fallback local aligné sur les règles backend MVP.
+          const subtotal = Number(cart.subtotal || 0);
+          if (subtotal >= 50000) {
+            setEstimatedShippingCost(0);
+            return;
+          }
+
+          const method = toBackendShippingMethod(formData.shipping_method);
+          const fallbackCost = method === 'express' ? 5000 : method === 'pickup' ? 0 : 3000;
+          setEstimatedShippingCost(fallbackCost);
+        }
+      }
+    };
+
+    estimateShipping();
+
+    return () => {
+      active = false;
+    };
+  }, [cart, formData.shipping_method, formData.shipping_country]);
 
   const calculateShippingCost = () => {
-    if (!cart) return 0;
-    if (cart.subtotal >= 50000) return 0;
-    return SHIPPING_METHODS[formData.shipping_method]?.price || 0;
+    return Number(estimatedShippingCost || 0);
   };
 
   const calculateTotal = () => {
@@ -116,45 +190,36 @@ export default function Checkout() {
     return cart.subtotal + calculateShippingCost();
   };
 
-  const validateStep1 = () => {
-    if (!formData.shipping_address.trim()) {
-      toast.error('Veuillez entrer votre adresse');
-      return false;
-    }
-    if (!formData.shipping_city.trim()) {
-      toast.error('Veuillez entrer votre ville');
-      return false;
-    }
-    if (!formData.shipping_phone.trim()) {
-      toast.error('Veuillez entrer votre téléphone');
-      return false;
-    }
-    return true;
+  const validateStep1 = async () => {
+    const valid = await trigger(['shipping_address', 'shipping_city', 'shipping_phone']);
+    if (!valid) toast.error('Veuillez corriger les champs de livraison');
+    return valid;
   };
 
-  const handleNextStep = () => {
+  const handleNextStep = async () => {
     if (submitting) return;
-    if (currentStep === 1 && !validateStep1()) return;
+    if (currentStep === 1 && !(await validateStep1())) return;
     if (currentStep >= 3) return;
     setCurrentStep((prev) => prev + 1);
   };
 
-  const handleSubmitOrder = async () => {
+  const handleSubmitOrder = async (values) => {
     if (submitting) return;
 
-    if (!validateStep1()) {
+    if (!(await validateStep1())) {
       setCurrentStep(1);
       return;
     }
 
     try {
       setSubmitting(true);
+      setFieldErrors({});
 
       const orderData = {
-        shipping_address: `${formData.shipping_address}, ${formData.shipping_city}, ${formData.shipping_country}`,
-        shipping_method: formData.shipping_method,
-        payment_method: formData.payment_method,
-        notes: formData.notes,
+        shipping_address: `${values.shipping_address}, ${values.shipping_city}, ${values.shipping_country}`,
+        shipping_method: toBackendShippingMethod(values.shipping_method),
+        payment_method: values.payment_method,
+        notes: values.notes,
       };
 
       const response = await orderService.createOrder(orderData);
@@ -163,17 +228,40 @@ export default function Checkout() {
         toast.success('Commande créée avec succès !');
 
         const orderId = response?.data?.order?.id || response?.data?.id || response?.order?.id;
-        if (orderId) {
-          navigate(`/orders/${orderId}`, { state: { newOrder: true } });
-        } else {
+        if (!orderId) {
           navigate('/orders');
+          return;
         }
+
+        try {
+          const paymentResponse = await paymentService.initiatePayment({ order_id: orderId });
+          const paymentUrl = paymentResponse?.data?.payment_url || paymentResponse?.payment_url;
+
+          if (paymentUrl) {
+            toast.success('Redirection vers le paiement...');
+            navigate(
+              `/checkout/payment?order_id=${encodeURIComponent(String(orderId))}&payment_url=${encodeURIComponent(paymentUrl)}`
+            );
+            return;
+          }
+        } catch (paymentError) {
+          toast.error(getErrorMessage(paymentError, 'Paiement non initialisé, redirection vers la commande.'));
+        }
+
+        navigate(`/orders/${orderId}/confirmation`);
       } else {
         toast.error(getErrorMessage(response, 'Erreur lors de la creation de la commande'));
       }
     } catch (error) {
-      toast.error(getErrorMessage(error, 'Erreur lors de la creation de la commande'));
-      console.error(error);
+      if (error?.status === 409) {
+        toast.error(getErrorMessage(error, 'Produit épuisé ou stock insuffisant'));
+      } else {
+        const normalizedErrors = normalizeFieldErrors(error);
+        if (Object.keys(normalizedErrors).length > 0) {
+          setFieldErrors(normalizedErrors);
+        }
+        toast.error(getErrorMessage(error, 'Erreur lors de la creation de la commande'));
+      }
     } finally {
       setSubmitting(false);
     }
@@ -199,7 +287,7 @@ export default function Checkout() {
     <>
       <Navbar />
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8">Finaliser la commande</h1>
+        <h1 className="text-3xl font-bold mb-8">{t('checkout_title')}</h1>
 
         <div className="flex items-center justify-center mb-8 overflow-x-auto">
           <div className="flex items-center min-w-max">
@@ -209,7 +297,7 @@ export default function Checkout() {
               }`}>
                 1
               </div>
-              <span className="ml-2 font-medium">Livraison</span>
+              <span className="ml-2 font-medium">{t('checkout_delivery')}</span>
             </div>
 
             <div className={`w-16 h-1 mx-4 ${currentStep >= 2 ? 'bg-primary' : 'bg-gray-200'}`} />
@@ -220,7 +308,7 @@ export default function Checkout() {
               }`}>
                 2
               </div>
-              <span className="ml-2 font-medium">Paiement</span>
+              <span className="ml-2 font-medium">{t('checkout_payment')}</span>
             </div>
 
             <div className={`w-16 h-1 mx-4 ${currentStep >= 3 ? 'bg-primary' : 'bg-gray-200'}`} />
@@ -231,7 +319,7 @@ export default function Checkout() {
               }`}>
                 3
               </div>
-              <span className="ml-2 font-medium">Confirmation</span>
+              <span className="ml-2 font-medium">{t('checkout_confirmation')}</span>
             </div>
           </div>
         </div>
@@ -251,14 +339,17 @@ export default function Checkout() {
                       <label className="block font-semibold mb-2">Adresse complète *</label>
                       <input
                         type="text"
-                        name="shipping_address"
-                        value={formData.shipping_address}
-                        onChange={handleInputChange}
+                        {...register('shipping_address')}
                         placeholder="Ex: 15 Rue de la République"
                         className="input"
                         required
                         disabled={submitting}
                       />
+                      {(errors.shipping_address?.message || fieldErrors.shipping_address) && (
+                        <p className="mt-1 text-xs text-red-600">
+                          {errors.shipping_address?.message || fieldErrors.shipping_address}
+                        </p>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -266,22 +357,23 @@ export default function Checkout() {
                         <label className="block font-semibold mb-2">Ville *</label>
                         <input
                           type="text"
-                          name="shipping_city"
-                          value={formData.shipping_city}
-                          onChange={handleInputChange}
+                          {...register('shipping_city')}
                           placeholder="Ex: Dakar"
                           className="input"
                           required
                           disabled={submitting}
                         />
+                        {(errors.shipping_city?.message || fieldErrors.shipping_city) && (
+                          <p className="mt-1 text-xs text-red-600">
+                            {errors.shipping_city?.message || fieldErrors.shipping_city}
+                          </p>
+                        )}
                       </div>
 
                       <div>
                         <label className="block font-semibold mb-2">Pays *</label>
                         <select
-                          name="shipping_country"
-                          value={formData.shipping_country}
-                          onChange={handleInputChange}
+                          {...register('shipping_country')}
                           className="input"
                           disabled={submitting}
                         >
@@ -291,6 +383,9 @@ export default function Checkout() {
                           <option value="Burkina Faso">Burkina Faso</option>
                           <option value="France">France</option>
                         </select>
+                        {fieldErrors.shipping_country && (
+                          <p className="mt-1 text-xs text-red-600">{fieldErrors.shipping_country}</p>
+                        )}
                       </div>
                     </div>
 
@@ -298,14 +393,17 @@ export default function Checkout() {
                       <label className="block font-semibold mb-2">Téléphone *</label>
                       <input
                         type="tel"
-                        name="shipping_phone"
-                        value={formData.shipping_phone}
-                        onChange={handleInputChange}
+                        {...register('shipping_phone')}
                         placeholder="Ex: +221 77 123 45 67"
                         className="input"
                         required
                         disabled={submitting}
                       />
+                      {(errors.shipping_phone?.message || fieldErrors.shipping_phone) && (
+                        <p className="mt-1 text-xs text-red-600">
+                          {errors.shipping_phone?.message || fieldErrors.shipping_phone}
+                        </p>
+                      )}
                     </div>
 
                     <div>
@@ -323,10 +421,9 @@ export default function Checkout() {
                             <div className="flex items-center">
                               <input
                                 type="radio"
-                                name="shipping_method"
+                                {...register('shipping_method')}
                                 value={key}
                                 checked={formData.shipping_method === key}
-                                onChange={handleInputChange}
                                 className="mr-3"
                                 disabled={submitting}
                               />
@@ -338,6 +435,9 @@ export default function Checkout() {
                           </label>
                         ))}
                       </div>
+                      {fieldErrors.shipping_method && (
+                        <p className="mt-2 text-xs text-red-600">{fieldErrors.shipping_method}</p>
+                      )}
                     </div>
                   </div>
 
@@ -366,10 +466,9 @@ export default function Checkout() {
                       >
                         <input
                           type="radio"
-                          name="payment_method"
+                          {...register('payment_method')}
                           value={key}
                           checked={formData.payment_method === key}
-                          onChange={handleInputChange}
                           className="mr-3"
                           disabled={submitting}
                         />
@@ -378,6 +477,9 @@ export default function Checkout() {
                       </label>
                     ))}
                   </div>
+                  {fieldErrors.payment_method && (
+                    <p className="mb-4 text-xs text-red-600">{fieldErrors.payment_method}</p>
+                  )}
 
                   <div className="flex gap-4">
                     <Button onClick={() => setCurrentStep(1)} variant="secondary" className="flex-1" disabled={submitting}>
@@ -436,9 +538,7 @@ export default function Checkout() {
                   <div className="mb-6">
                     <label className="block font-semibold mb-2">Notes pour le vendeur (optionnel)</label>
                     <textarea
-                      name="notes"
-                      value={formData.notes}
-                      onChange={handleInputChange}
+                      {...register('notes')}
                       placeholder="Instructions de livraison, commentaires..."
                       rows="3"
                       className="input"
@@ -451,7 +551,7 @@ export default function Checkout() {
                       Retour
                     </Button>
                     <Button
-                      onClick={handleSubmitOrder}
+                      onClick={handleSubmit(handleSubmitOrder)}
                       loading={submitting}
                       className="flex-1"
                       size="lg"

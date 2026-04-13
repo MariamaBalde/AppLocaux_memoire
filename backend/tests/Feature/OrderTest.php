@@ -51,7 +51,7 @@ class OrderTest extends TestCase
         ]);
 
         $response
-            ->assertStatus(422)
+            ->assertStatus(403)
             ->assertJsonPath('success', false)
             ->assertJsonStructure(['errors' => ['permission']]);
     }

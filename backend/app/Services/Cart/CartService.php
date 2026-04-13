@@ -41,14 +41,11 @@ class CartService
      */
     public function addToCart(User $user, array $data)
     {
-        // Valider les données
-        $validated = validator($data, [
-            'product_id' => 'required|exists:products,id',
-            'quantity' => 'required|integer|min:1',
-        ])->validate();
+        $productId = (int) $data['product_id'];
+        $quantity = (int) $data['quantity'];
 
         // Vérifier que le produit existe et est actif
-        $product = Product::find($validated['product_id']);
+        $product = Product::find($productId);
 
         if (!$product || !$product->is_active) {
             throw ValidationException::withMessages([
@@ -57,7 +54,7 @@ class CartService
         }
 
         // Vérifier le stock disponible
-        if ($product->stock < $validated['quantity']) {
+        if ($product->stock < $quantity) {
             throw ValidationException::withMessages([
                 'quantity' => ['Stock insuffisant. Disponible : ' . $product->stock],
             ]);
@@ -65,12 +62,12 @@ class CartService
 
         // Vérifier si le produit est déjà dans le panier
         $cartItem = Cart::where('user_id', $user->id)
-            ->where('product_id', $validated['product_id'])
+            ->where('product_id', $productId)
             ->first();
 
         if ($cartItem) {
             // Mettre à jour la quantité
-            $newQuantity = $cartItem->quantity + $validated['quantity'];
+            $newQuantity = $cartItem->quantity + $quantity;
 
             // Vérifier le stock pour la nouvelle quantité
             if ($product->stock < $newQuantity) {
@@ -85,8 +82,8 @@ class CartService
             // Ajouter au panier
             $cartItem = Cart::create([
                 'user_id' => $user->id,
-                'product_id' => $validated['product_id'],
-                'quantity' => $validated['quantity'],
+                'product_id' => $productId,
+                'quantity' => $quantity,
             ]);
             $message = 'Produit ajouté au panier';
         }

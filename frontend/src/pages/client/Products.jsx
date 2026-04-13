@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { SlidersHorizontal, X, ChevronDown } from 'lucide-react';
 import ProductList from '../../components/products/ProductList';
+import ProductFilters from '../../components/products/ProductFilters';
 import Navbar from '../../components/common/Navbar';
+import { useI18n } from '../../context/I18nContext';
 import { productService } from '../../services/productService';
 import { categoryService } from '../../services/categoryService';
 import toast from 'react-hot-toast';
@@ -81,11 +83,12 @@ function extractProducts(payload) {
 function extractPagination(payload) {
   const data = payload?.data ?? payload;
   if (data && typeof data === 'object' && !Array.isArray(data) && Array.isArray(data.data)) {
+    const meta = data.meta && typeof data.meta === 'object' ? data.meta : data;
     return {
-      current_page: Number(data.current_page || 1),
-      last_page: Number(data.last_page || 1),
-      total: Number(data.total || data.data.length || 0),
-      per_page: Number(data.per_page || data.data.length || 0),
+      current_page: Number(meta.current_page || 1),
+      last_page: Number(meta.last_page || 1),
+      total: Number(meta.total || data.data.length || 0),
+      per_page: Number(meta.per_page || data.data.length || 0),
     };
   }
 
@@ -122,6 +125,7 @@ function getVisiblePaginationItems(currentPage, lastPage) {
 }
 
 export default function Products() {
+  const { t } = useI18n();
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -152,7 +156,6 @@ export default function Products() {
         setCategories([]);
       }
     } catch (fetchError) {
-      console.error('Erreur categories:', fetchError);
       setCategories([]);
     }
   };
@@ -186,7 +189,6 @@ export default function Products() {
     } catch (fetchError) {
       setError('Erreur lors du chargement des produits');
       toast.error('Erreur lors du chargement des produits');
-      console.error(fetchError);
       setProducts([]);
       setPagination({ current_page: 1, last_page: 1, total: 0, per_page: 0 });
     } finally {
@@ -271,6 +273,10 @@ export default function Products() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleSearchSubmit = () => {
+    applyFiltersToUrl(filters, '1');
+  };
+
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
       if (filters.delivery_local === 'true' && !product?._meta?.deliveryLocal) return false;
@@ -328,11 +334,10 @@ export default function Products() {
       <section className="catalog-hero">
         <div className="catalog-hero-inner">
           <div className="catalog-hero-content">
-            <p className="catalog-overline">Produits locaux africains</p>
-            <h1>Le meilleur du Senegal, livre partout dans le monde</h1>
+            <p className="catalog-overline">{t('products_overline')}</p>
+            <h1>{t('products_title')}</h1>
             <p>
-              Commandez directement aupres des producteurs. Livraison locale ou expedition internationale
-              pour la diaspora.
+              {t('products_tagline')}
             </p>
 
             <div className="catalog-hero-tags">
@@ -557,82 +562,16 @@ export default function Products() {
             </div>
 
             <div className="mobile-filter-content">
-              <div>
-                <label htmlFor="mobile-search">Recherche</label>
-                <input
-                  id="mobile-search"
-                  type="text"
-                  value={filters.search}
-                  onChange={(e) => handleFilterChange('search', e.target.value)}
-                  placeholder="Nom du produit"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="mobile-category">Categorie</label>
-                <select
-                  id="mobile-category"
-                  value={filters.category_id}
-                  onChange={(e) => handleFilterChange('category_id', e.target.value)}
-                >
-                  <option value="">Toutes les categories</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label>Prix (FCFA)</label>
-                <div className="price-row">
-                  <input
-                    type="number"
-                    placeholder="Min"
-                    value={filters.price_min}
-                    onChange={(e) => handleFilterChange('price_min', e.target.value)}
-                  />
-                  <span>-</span>
-                  <input
-                    type="number"
-                    placeholder="Max"
-                    value={filters.price_max}
-                    onChange={(e) => handleFilterChange('price_max', e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <label className="switch-wrap" htmlFor="mobile-delivery-local">
-                <input
-                  id="mobile-delivery-local"
-                  type="checkbox"
-                  checked={filters.delivery_local === 'true'}
-                  onChange={(e) => handleFilterChange('delivery_local', e.target.checked ? 'true' : '')}
-                />
-                <span className="switch-ui" />
-                <span>Livraison locale</span>
-              </label>
-
-              <label className="switch-wrap" htmlFor="mobile-delivery-intl">
-                <input
-                  id="mobile-delivery-intl"
-                  type="checkbox"
-                  checked={filters.delivery_intl === 'true'}
-                  onChange={(e) => handleFilterChange('delivery_intl', e.target.checked ? 'true' : '')}
-                />
-                <span className="switch-ui" />
-                <span>Expedition intl.</span>
-              </label>
-            </div>
-
-            <div className="mobile-filter-actions">
-              <button type="button" className="sidebar-btn apply" onClick={applyFilters}>
-                Appliquer
-              </button>
-              <button type="button" className="sidebar-btn reset" onClick={resetFilters}>
-                Reinitialiser
-              </button>
+              <ProductFilters
+                searchValue={filters.search}
+                onSearchChange={(value) => handleFilterChange('search', value)}
+                onSearchSubmit={handleSearchSubmit}
+                filters={filters}
+                categories={categories}
+                onFilterChange={handleFilterChange}
+                onApply={applyFilters}
+                onReset={resetFilters}
+              />
             </div>
           </div>
         </div>

@@ -1,8 +1,19 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import Button from '../../components/common/Button';
 import { useAuth } from '../../context/AuthContext';
+import { useI18n } from '../../context/I18nContext';
 import toast from 'react-hot-toast';
+import { loginSchema } from '../../utils/formSchemas';
+
+function getPostAuthRouteByRole(role) {
+  const normalizedRole = String(role || '').toLowerCase();
+  if (normalizedRole === 'vendeur') return '/vendeur/dashboard';
+  if (normalizedRole === 'admin') return '/admin/dashboard';
+  return '/products';
+}
 
 function getErrorMessage(error, fallbackMessage) {
   if (!error) return fallbackMessage;
@@ -20,33 +31,36 @@ function getErrorMessage(error, fallbackMessage) {
 }
 
 export default function Login() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    remember: false,
-  });
   const [loading, setLoading] = useState(false);
-
-  const handleChange = (e) => {
-    const { name, type, checked, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+      remember: false,
+    },
+  });
+  const onSubmit = async (values) => {
     if (loading) return;
 
     try {
       setLoading(true);
-      await login(formData.email.trim(), formData.password);
+      const result = await login(values.email.trim(), values.password);
+      if (result?.requiresEmailVerification) {
+        toast('Veuillez vérifier votre email pour activer votre compte');
+        navigate('/verify-email');
+        return;
+      }
       toast.success('Connexion reussie');
-      navigate('/');
+      navigate(getPostAuthRouteByRole(result?.user?.role));
     } catch (error) {
       toast.error(getErrorMessage(error, 'Email ou mot de passe incorrect'));
     } finally {
@@ -58,7 +72,7 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-900">Connexion</h2>
+          <h2 className="text-3xl font-bold text-gray-900">{t('login_title')}</h2>
           <p className="mt-2 text-gray-600">
             Pas encore de compte ?{' '}
             <Link to="/register" className="text-primary hover:underline font-medium">
@@ -68,42 +82,38 @@ export default function Login() {
         </div>
 
         <div className="bg-white rounded-lg shadow-md p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div>
               <label className="block font-semibold mb-2">Email</label>
               <input
                 type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
+                {...register('email')}
                 placeholder="votre@email.com"
                 className="input"
                 required
                 disabled={loading}
               />
+              {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
             </div>
 
             <div>
               <label className="block font-semibold mb-2">Mot de passe</label>
               <input
                 type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
+                {...register('password')}
                 placeholder="••••••••"
                 className="input"
                 required
                 disabled={loading}
               />
+              {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password.message}</p>}
             </div>
 
             <div className="flex items-center justify-between">
               <label className="flex items-center">
                 <input
                   type="checkbox"
-                  name="remember"
-                  checked={formData.remember}
-                  onChange={handleChange}
+                  {...register('remember')}
                   className="mr-2"
                   disabled={loading}
                 />
@@ -112,7 +122,7 @@ export default function Login() {
               <button
                 type="button"
                 className="text-sm text-primary hover:underline"
-                onClick={() => toast('Recuperation du mot de passe bientot disponible')}
+                onClick={() => navigate('/forgot-password')}
                 disabled={loading}
               >
                 Mot de passe oublie ?

@@ -6,18 +6,19 @@ import {
   Star,
   Trash2,
   Truck,
-  X,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../../components/common/Navbar';
 import Spinner from '../../components/common/Spinner';
 import { formatPrice } from '../../utils/formatPrice';
 import { resolveImageUrl } from '../../utils/imageUrl';
 import { cartService } from '../../services/cartService';
 import { authService } from '../../services/authService';
+import { fxService } from '../../services/fxService';
 import { useCart } from '../../context/CartContext';
+import { useI18n } from '../../context/I18nContext';
 import toast from 'react-hot-toast';
 
-const FX_EUR = 655.957;
 const PROMO_CODE = 'DIASPORA10';
 const SHIPPING_PRESETS = {
   dhl: { label: 'DHL Express International', eta: 'Livraison 5-8 jours', price: 7000 },
@@ -99,6 +100,8 @@ function getAddressFromUser() {
 }
 
 export default function Cart() {
+  const navigate = useNavigate();
+  const { t } = useI18n();
   const { refreshCart: refreshCartContext } = useCart();
   const [cart, setCart] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -113,8 +116,6 @@ export default function Cart() {
   const [selectedAddressId, setSelectedAddressId] = useState('addr-1');
   const [showAddAddress, setShowAddAddress] = useState(false);
   const [newAddress, setNewAddress] = useState({ name: '', line1: '', cityCountry: '', phone: '' });
-  const [showConfirmation, setShowConfirmation] = useState(false);
-  const [orderNumber, setOrderNumber] = useState('');
 
   useEffect(() => {
     fetchCart();
@@ -189,7 +190,7 @@ export default function Cart() {
   const serviceFee = Math.round(subtotal * 0.05);
   const promoDiscount = promoApplied ? Math.round(subtotal * 0.1) : 0;
   const total = Math.max(0, subtotal + shippingCost + serviceFee - promoDiscount);
-  const totalEur = total / FX_EUR;
+  const totalEur = fxService.convertFromXof(total, 'EUR');
   const selectedCount = selectedItemList.length;
 
   const toggleVendorSelection = (vendorKey, checked) => {
@@ -255,13 +256,12 @@ export default function Cart() {
     setShowAddAddress(false);
   };
 
-  const openConfirmation = () => {
+  const goToCheckout = () => {
     if (selectedCount === 0) {
       toast.error('Selectionnez au moins un article');
       return;
     }
-    setOrderNumber(`AFM-${Date.now().toString().slice(-8)}`);
-    setShowConfirmation(true);
+    navigate('/checkout');
   };
 
   if (loading) {
@@ -308,12 +308,14 @@ export default function Cart() {
                       ? 'bg-green-700 text-white'
                       : item.active
                         ? 'bg-[#cb6b2f] text-white'
-                        : 'bg-transparent text-[#3f2d23]'
+                      : 'bg-transparent text-[#3f2d23]'
                   }`}
                 >
                   {item.done ? <Check className="h-4 w-4" /> : item.step}
                 </span>
-                <span className={item.active ? 'font-semibold text-[#cb6b2f]' : 'text-[#3f2d23]'}>{item.label}</span>
+                <span className={item.active ? 'font-semibold text-[#cb6b2f]' : 'text-[#3f2d23]'}>
+                  {item.step === 2 ? t('cart_title') : item.label}
+                </span>
                 {index < arr.length - 1 && <span className="mx-2 h-px w-10 bg-[#9ab082]" />}
               </div>
             ))}
@@ -576,7 +578,7 @@ export default function Cart() {
 
               <button
                 type="button"
-                onClick={openConfirmation}
+                onClick={goToCheckout}
                 className="mb-3 w-full rounded bg-[#cb6b2f] px-4 py-3 font-semibold text-white"
               >
                 Confirmer et payer <ArrowRight className="inline h-4 w-4" />
@@ -600,36 +602,6 @@ export default function Cart() {
           </div>
         </div>
       </div>
-
-      {showConfirmation && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 p-4">
-          <div className="w-full max-w-xl rounded-lg bg-white p-6 shadow-2xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-xl font-semibold">Commande confirmee</h3>
-              <button type="button" onClick={() => setShowConfirmation(false)} className="rounded p-1 hover:bg-gray-100">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <p className="mb-2">Numero de commande: <strong>{orderNumber}</strong></p>
-            <p className="mb-4 text-sm text-[#665548]">Montant confirme: {formatPrice(total)} (≈ €{totalEur.toFixed(2)})</p>
-
-            <div className="mb-5 space-y-2 rounded bg-[#f7f4f1] p-4">
-              <p className="font-semibold">Etapes de livraison</p>
-              <p className="text-sm">1. Preparation de la commande (0-24h)</p>
-              <p className="text-sm">2. Collecte et verification vendeur (24-48h)</p>
-              <p className="text-sm">3. Expedition internationale (2-8 jours)</p>
-              <p className="text-sm">4. Livraison finale et confirmation</p>
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => setShowConfirmation(false)} className="rounded border px-4 py-2">
-                Fermer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

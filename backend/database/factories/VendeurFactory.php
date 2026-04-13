@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -17,7 +18,16 @@ class VendeurFactory extends Factory
     public function definition(): array
     {
         return [
-            //
+            'user_id' => User::factory()->state([
+                'role' => 'vendeur',
+                'country' => 'SN',
+                'statut' => 'actif',
+            ]),
+            'shop_name' => fake()->company(),
+            'description' => fake()->optional()->sentence(),
+            'verified' => true,
+            'rating' => fake()->randomFloat(1, 3, 5),
+            'total_sales' => fake()->numberBetween(0, 500),
         ];
     }
 }

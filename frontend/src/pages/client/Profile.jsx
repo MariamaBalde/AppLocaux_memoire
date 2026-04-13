@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { userService } from '../../services/userService';
 import Navbar from '../../components/common/Navbar';
@@ -6,6 +7,7 @@ import Button from '../../components/common/Button';
 
 export default function Profile() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('profile'); // profile, addresses, settings
   const [message, setMessage] = useState('');
@@ -14,7 +16,6 @@ export default function Profile() {
     name: user?.name || '',
     email: user?.email || '',
     phone: user?.phone || '',
-    company: user?.company || '',
   });
 
   const [addresses, setAddresses] = useState([]);
@@ -44,8 +45,8 @@ export default function Profile() {
     try {
       const response = await userService.getAddresses();
       setAddresses(response.data || response);
-    } catch (err) {
-      console.error('Erreur récupération adresses', err);
+    } catch {
+      setMessage({ type: 'error', text: 'Erreur de chargement des adresses' });
     }
   };
 
@@ -172,7 +173,7 @@ export default function Profile() {
                 <Button
                   onClick={() => {
                     logout();
-                    window.location.href = '/login';
+                    navigate('/login');
                   }}
                   variant="danger"
                   fullWidth
@@ -219,17 +220,6 @@ export default function Profile() {
                         type="tel"
                         value={profileData.phone}
                         onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
-                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-gray-700 font-semibold mb-2">
-                        Entreprise (optionnel)
-                      </label>
-                      <input
-                        type="text"
-                        value={profileData.company}
-                        onChange={(e) => setProfileData({ ...profileData, company: e.target.value })}
                         className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                       />
                     </div>

@@ -27,33 +27,4 @@ class UserValidationService
             ]);
         }
     }
-
-    /**
-     * Valider les données d'entrée d'enregistrement
-     */
-    public function validateRegistrationData(array $data): array
-    {
-        return validator($data, [
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8',
-            'role' => 'required|in:client,vendeur',
-            'phone' => 'nullable|string|max:20',
-            'address' => 'nullable|string',
-            'country' => 'required|string|max:2',
-            'shop_name' => 'required_if:role,vendeur|string|max:255',
-            'shop_description' => 'nullable|string',
-        ])->validate();
-    }
-
-    /**
-     * Valider les credentials de login
-     */
-    public function validateLoginCredentials(array $credentials): array
-    {
-        return validator($credentials, [
-            'email' => 'required|email',
-            'password' => 'required|string',
-        ])->validate();
-    }
 }

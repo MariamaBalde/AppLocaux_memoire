@@ -2,6 +2,17 @@
 
 namespace App\Providers;
 
+use App\Models\Category;
+use App\Models\Order;
+use App\Models\Product;
+use App\Models\User;
+use App\Policies\AdminUserPolicy;
+use App\Policies\CategoryPolicy;
+use App\Policies\OrderPolicy;
+use App\Policies\ProductPolicy;
+use App\Policies\UserPolicy;
+use App\Policies\VendorOrderPolicy;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Laravel\Passport\Passport;
 
@@ -11,7 +22,10 @@ class AuthServiceProvider extends ServiceProvider
      * The model to policy mappings for the application.
      */
     protected $policies = [
-        // 'App\Models\Model' => 'App\Policies\ModelPolicy',
+        User::class => UserPolicy::class,
+        Order::class => OrderPolicy::class,
+        Product::class => ProductPolicy::class,
+        Category::class => CategoryPolicy::class,
     ];
 
     /**
@@ -19,7 +33,14 @@ class AuthServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-                $this->registerPolicies();
+        $this->registerPolicies();
+
+        Gate::define('admin.users.viewAny', [AdminUserPolicy::class, 'viewAny']);
+        Gate::define('admin.users.updateStatus', [AdminUserPolicy::class, 'updateStatus']);
+        Gate::define('vendor.orders.viewAny', [VendorOrderPolicy::class, 'viewAny']);
+        Gate::define('vendor.orders.view', [VendorOrderPolicy::class, 'view']);
+        Gate::define('vendor.orders.updateStatus', [VendorOrderPolicy::class, 'updateStatus']);
+        Gate::define('vendor.orders.updateTracking', [VendorOrderPolicy::class, 'updateTracking']);
 
         // ✅ Enregistrer les routes Passport
         // Passport::routes(); // Déprécié en Laravel 11

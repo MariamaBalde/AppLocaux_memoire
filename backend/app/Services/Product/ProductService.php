@@ -174,34 +174,19 @@ class ProductService
     {
         $this->ensureVerifiedVendor($user);
 
-        // Valider les données
-        $validated = validator($data, [
-            'category_id' => 'required|exists:categories,id',
-            'name' => 'required|string|max:255',
-            'description' => 'required|string',
-            'price' => 'required|numeric|min:0',
-            'stock' => 'required|integer|min:0',
-            'weight' => 'nullable|numeric|min:0',
-            'images' => 'nullable|array|max:5',
-            'images.*' => 'image|mimes:jpeg,png,jpg,webp|max:2048', // 2MB max par image
-            'image_urls' => 'nullable|array|max:5',
-            'image_urls.*' => 'url|max:2048',
-            'is_active' => 'boolean',
-        ])->validate();
-
-        $imageUrls = $this->resolveFinalImageUrls($validated);
+        $imageUrls = $this->resolveFinalImageUrls($data);
 
         // Créer le produit
         $product = Product::create([
             'vendeur_id' => $user->vendeur->id,
-            'category_id' => $validated['category_id'],
-            'name' => $validated['name'],
-            'description' => $validated['description'],
-            'price' => $validated['price'],
-            'stock' => $validated['stock'],
-            'weight' => $validated['weight'] ?? null,
+            'category_id' => $data['category_id'],
+            'name' => $data['name'],
+            'description' => $data['description'],
+            'price' => $data['price'],
+            'stock' => $data['stock'],
+            'weight' => $data['weight'] ?? null,
             'images' => $imageUrls,
-            'is_active' => $validated['is_active'] ?? true,
+            'is_active' => $data['is_active'] ?? true,
             'created_by' => $user->id,
         ]);
 
@@ -229,21 +214,7 @@ class ProductService
             $this->ensureVerifiedVendor($user);
         }
 
-        // Valider les données
-        $validated = validator($data, [
-            'category_id' => 'sometimes|exists:categories,id',
-            'name' => 'sometimes|string|max:255',
-            'description' => 'sometimes|string',
-            'price' => 'sometimes|numeric|min:0',
-            'stock' => 'sometimes|integer|min:0',
-            'weight' => 'nullable|numeric|min:0',
-            'images' => 'nullable|array|max:5',
-            'images.*' => 'image|mimes:jpeg,png,jpg,webp|max:2048',
-            'image_urls' => 'nullable|array|max:5',
-            'image_urls.*' => 'url|max:2048',
-            'is_active' => 'sometimes|boolean',
-        ])->validate();
-
+        $validated = $data;
         $wantsToReplaceImages = isset($validated['images']) || isset($validated['image_urls']);
         if ($wantsToReplaceImages) {
             // Supprimer les anciennes images
@@ -270,6 +241,44 @@ class ProductService
         return $product->load(['vendeur.user', 'category']);
     }
 
+    public function addProductImages(int $id, array $data, User $user)
+    {
+        $product = Product::find($id);
+
+        if (!$product) {
+            throw ValidationException::withMessages([
+                'product' => ['Produit non trouvé.'],
+            ]);
+        }
+
+        if (!$user->isAdmin() && $product->vendeur_id !== $user->vendeur?->id) {
+            throw ValidationException::withMessages([
+                'permission' => ['Vous n\'êtes pas autorisé à modifier ce produit.'],
+            ]);
+        }
+
+        if (!$user->isAdmin()) {
+            $this->ensureVerifiedVendor($user);
+        }
+
+        $newUrls = $this->resolveFinalImageUrls($data);
+        $existing = is_array($product->images) ? $product->images : [];
+        $final = array_values(array_unique(array_merge($existing, $newUrls)));
+
+        if (count($final) > 5) {
+            throw ValidationException::withMessages([
+                'images' => ['Maximum 5 images par produit.'],
+            ]);
+        }
+
+        $product->update([
+            'images' => $final,
+            'updated_by' => $user->id,
+        ]);
+
+        return $product->load(['vendeur.user', 'category']);
+    }
+
     public function createProductForVendor(array $data, User $admin)
     {
         if (!$admin->isAdmin()) {
@@ -278,48 +287,33 @@ class ProductService
             ]);
         }
 
-        $validated = validator($data, [
-            'vendeur_id' => 'required|exists:vendeurs,id',
-            'category_id' => 'required|exists:categories,id',
-            'name' => 'required|string|max:255',
-            'description' => 'required|string',
-            'price' => 'required|numeric|min:0',
-            'stock' => 'required|integer|min:0',
-            'weight' => 'nullable|numeric|min:0',
-            'images' => 'nullable|array|max:5',
-            'images.*' => 'image|mimes:jpeg,png,jpg,webp|max:2048',
-            'image_urls' => 'nullable|array|max:5',
-            'image_urls.*' => 'url|max:2048',
-            'is_active' => 'sometimes|boolean',
-        ])->validate();
-
-        $vendeur = Vendeur::with('user')->find($validated['vendeur_id']);
+        $vendeur = Vendeur::with('user')->find($data['vendeur_id']);
         if (!$vendeur || !$vendeur->user || !$vendeur->user->isVendeur()) {
             throw ValidationException::withMessages([
                 'vendeur_id' => ['Le vendeur sélectionné est invalide.'],
             ]);
         }
 
-        if (!$vendeur->verified && ($validated['is_active'] ?? true) === true) {
+        if (!$vendeur->verified && ($data['is_active'] ?? true) === true) {
             throw ValidationException::withMessages([
                 'is_active' => ['Un vendeur non vérifié ne peut pas publier un produit actif.'],
             ]);
         }
 
-        $imageUrls = $this->resolveFinalImageUrls($validated);
+        $imageUrls = $this->resolveFinalImageUrls($data);
 
-        $isActive = array_key_exists('is_active', $validated)
-            ? (bool) $validated['is_active']
+        $isActive = array_key_exists('is_active', $data)
+            ? (bool) $data['is_active']
             : (bool) $vendeur->verified;
 
         $product = Product::create([
             'vendeur_id' => $vendeur->id,
-            'category_id' => $validated['category_id'],
-            'name' => $validated['name'],
-            'description' => $validated['description'],
-            'price' => $validated['price'],
-            'stock' => $validated['stock'],
-            'weight' => $validated['weight'] ?? null,
+            'category_id' => $data['category_id'],
+            'name' => $data['name'],
+            'description' => $data['description'],
+            'price' => $data['price'],
+            'stock' => $data['stock'],
+            'weight' => $data['weight'] ?? null,
             'images' => $imageUrls,
             'is_active' => $isActive,
             'created_by' => $admin->id,

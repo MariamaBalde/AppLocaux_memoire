@@ -19,6 +19,7 @@ const DEFAULT_DATA = {
     monthlyRevenue: 0,
     ordersCount: 0,
     pendingCount: 0,
+    totalProducts: 0,
     activeProducts: 0,
     outOfStockProducts: 0,
     shopRating: 0,
@@ -221,7 +222,7 @@ export default function VendorDashboard() {
             <StatsCard
               title="Produits actifs"
               value={loading ? '...' : dashboardData.stats.activeProducts}
-              subtitle={`${dashboardData.stats.outOfStockProducts} en rupture`}
+              subtitle={`${dashboardData.stats.totalProducts || 0} au total · ${dashboardData.stats.outOfStockProducts} en rupture`}
               darkMode={darkMode}
             />
             <StatsCard

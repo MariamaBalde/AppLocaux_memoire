@@ -44,18 +44,26 @@ export const adminService = {
     }
   },
 
-  async getTopVendors(limit = 10) {
+  async getTopVendors(perPage = 10, page = 1) {
     try {
-      const response = await api.get(`/admin/top-vendors?limit=${encodeURIComponent(limit)}`);
+      const params = new URLSearchParams({
+        per_page: String(perPage),
+        page: String(page),
+      });
+      const response = await api.get(`/admin/top-vendors?${params.toString()}`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error;
     }
   },
 
-  async getRecentOrders(limit = 10) {
+  async getRecentOrders(perPage = 10, page = 1) {
     try {
-      const response = await api.get(`/admin/recent-orders?limit=${encodeURIComponent(limit)}`);
+      const params = new URLSearchParams({
+        per_page: String(perPage),
+        page: String(page),
+      });
+      const response = await api.get(`/admin/recent-orders?${params.toString()}`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error;
@@ -99,6 +107,79 @@ export const adminService = {
             }
           : undefined
       );
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  async approveVendor(vendeurId) {
+    try {
+      const response = await api.post(`/admin/vendors/${encodeURIComponent(vendeurId)}/approve`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  async rejectVendor(vendeurId, reason = '') {
+    try {
+      const response = await api.post(`/admin/vendors/${encodeURIComponent(vendeurId)}/reject`, {
+        reason,
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  async toggleUserStatus(userId) {
+    try {
+      const response = await api.post(`/admin/users/${encodeURIComponent(userId)}/toggle-status`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  async getAllProducts(filters = {}) {
+    try {
+      const params = new URLSearchParams(
+        Object.entries(filters).reduce((acc, [key, value]) => {
+          if (value !== undefined && value !== null && value !== '') acc[key] = String(value);
+          return acc;
+        }, {})
+      );
+      const response = await api.get(`/admin/products${params.toString() ? `?${params.toString()}` : ''}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  async updateProductStatus(productId, status) {
+    try {
+      const response = await api.patch(`/admin/products/${encodeURIComponent(productId)}/status`, {
+        status,
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  async toggleFeaturedProduct(productId) {
+    try {
+      const response = await api.patch(`/admin/products/${encodeURIComponent(productId)}/featured`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  async deleteProduct(productId) {
+    try {
+      const response = await api.delete(`/admin/products/${encodeURIComponent(productId)}`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error;

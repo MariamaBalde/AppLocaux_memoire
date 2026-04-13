@@ -48,7 +48,6 @@ export default function Orders() {
       setError(null);
     } catch (err) {
       setError('Erreur lors du chargement des commandes');
-      console.error(err);
     } finally {
       setIsLoading(false);
     }

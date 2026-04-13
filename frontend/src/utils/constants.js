@@ -3,9 +3,9 @@ export const DEFAULT_CURRENCY = 'XOF';
 
 
 export const SHIPPING_METHODS = {
-  standard: { label: 'Standard (3-5 jours)', price: 3000 },
-  express: { label: 'Express (1-2 jours)', price: 5000 },
-  pickup: { label: 'Retrait en boutique', price: 0 },
+  local: { label: 'Livraison standard (24-72h)', price: 3000 },
+  international: { label: 'Expédition express (5-10 jours)', price: 5000 },
+  diaspora: { label: 'Retrait / point relais', price: 0 },
 };
 
 export const PAYMENT_METHODS = {

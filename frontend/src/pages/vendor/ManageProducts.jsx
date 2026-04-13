@@ -454,6 +454,12 @@ export default function ManageProducts() {
                         )}
 
                         <div className="flex flex-wrap items-center gap-2">
+                          <Link
+                            to={`/vendeur/products/${product.id}/edit`}
+                            className="rounded-xl border border-[#cfc6bd] bg-white px-3 py-2 text-sm font-semibold text-[#2f2924]"
+                          >
+                            Modifier
+                          </Link>
                           <button
                             type="button"
                             onClick={() => handleToggle(product.id)}

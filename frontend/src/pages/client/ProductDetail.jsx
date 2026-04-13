@@ -9,6 +9,7 @@ import { formatPrice } from '../../utils/formatPrice';
 import { resolveImageUrl } from '../../utils/imageUrl';
 import { productService } from '../../services/productService';
 import { authService } from '../../services/authService';
+import { fxService } from '../../services/fxService';
 import { useCart } from '../../context/CartContext';
 import toast from 'react-hot-toast';
 import fallbackProductImage from '../../assets/home/product-bottles-display.jpg';
@@ -152,7 +153,7 @@ export default function ProductDetail() {
   const isOutOfStock = Number(product.stock) <= 0;
   const maxQuantity = Math.max(1, Number(product.stock || 1));
   const isQuantityInvalid = quantity < 1 || quantity > maxQuantity;
-  const exportUnitPrice = Number(product.price || 0) / 655.957;
+  const exportUnitPrice = fxService.convertFromXof(Number(product.price || 0), 'EUR');
   const deliveryFee = selectedDelivery === 'intl' ? 2500 : 0;
   const subtotal = Number(product.price || 0) * quantity;
   const total = subtotal + deliveryFee;

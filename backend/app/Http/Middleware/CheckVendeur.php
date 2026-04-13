@@ -15,14 +15,16 @@ class CheckVendeur
      */
     public function handle(Request $request, Closure $next): Response
     {
-         if (!$request->user() || !$request->user()->isVendeur()) {
+        $user = $request->user();
+
+        if (!$user || !$user->isVendeur()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Accès refusé. Réservé aux vendeurs.'
             ], 403);
         }
 
-        $vendeur = $request->user()->vendeur;
+        $vendeur = $user->vendeur()->first();
         if (!$vendeur || !$vendeur->verified) {
             return response()->json([
                 'success' => false,

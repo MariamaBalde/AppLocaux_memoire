@@ -15,7 +15,6 @@ export default function OrderDetail() {
   const [order, setOrder] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [trackingInfo, setTrackingInfo] = useState(null);
 
   useEffect(() => {
     fetchOrder();
@@ -28,18 +27,9 @@ export default function OrderDetail() {
       const response = await orderService.getOrder(id);
       setOrder(response.data || response);
 
-      // Fetch tracking info
-      try {
-        const tracking = await orderService.getTrackingInfo(id);
-        setTrackingInfo(tracking.data || tracking);
-      } catch (err) {
-        console.log('Pas d\'info de suivi disponible');
-      }
-
       setError(null);
     } catch (err) {
       setError('Commande non trouvée');
-      console.error(err);
     } finally {
       setIsLoading(false);
     }
@@ -99,7 +89,6 @@ export default function OrderDetail() {
       await fetchOrder();
     } catch (err) {
       setError('Impossible d\'annuler la commande');
-      console.error(err);
     }
   };
 
@@ -135,32 +124,6 @@ export default function OrderDetail() {
                   </span>
                 </div>
               </div>
-
-              {/* Timeline/Statut */}
-              {trackingInfo && (
-                <div className="bg-white rounded-lg shadow-lg p-6">
-                  <h3 className="text-xl font-bold mb-6">Suivi de la commande</h3>
-                  <div className="space-y-4">
-                    {trackingInfo.events?.map((event, index) => (
-                      <div key={index} className="flex gap-4">
-                        <div className="flex flex-col items-center">
-                          <div className={`w-4 h-4 rounded-full ${event.completed ? 'bg-success' : 'bg-gray-300'}`} />
-                          {index < trackingInfo.events?.length - 1 && (
-                            <div className="w-1 h-12 bg-gray-300" />
-                          )}
-                        </div>
-                        <div>
-                          <p className="font-semibold">{event.name}</p>
-                          <p className="text-sm text-gray-600">{formatDate(event.date)}</p>
-                          {event.description && (
-                            <p className="text-sm text-gray-600">{event.description}</p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {/* Produits */}
               <div className="bg-white rounded-lg shadow-lg p-6">

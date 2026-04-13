@@ -61,30 +61,4 @@ export const orderService = {
       throw error.response?.data || error;
     }
   },
-
-  // Endpoint non implémenté côté backend: on reconstruit un suivi à partir du statut
-  async getTrackingInfo(id) {
-    const response = await this.getOrder(id);
-    const order = response?.data || response;
-    const status = order?.status || 'pending';
-    const createdAt = order?.created_at || new Date().toISOString();
-
-    const steps = [
-      { key: 'pending', name: 'Commande reçue' },
-      { key: 'processing', name: 'Commande en préparation' },
-      { key: 'shipped', name: 'Commande expédiée' },
-      { key: 'delivered', name: 'Commande livrée' },
-    ];
-
-    const statusOrder = ['pending', 'processing', 'shipped', 'delivered'];
-    const currentIndex = statusOrder.indexOf(status);
-
-    const events = steps.map((step, index) => ({
-      name: step.name,
-      completed: currentIndex >= index,
-      date: createdAt,
-    }));
-
-    return { success: true, data: { events } };
-  },
 };

@@ -114,7 +114,16 @@ export default function ProductCard({ product }) {
         </button>
 
         <div className="product-image-wrap" style={{ background: tone.bg }}>
-          <img src={productImage} alt={product.name} className="product-image-visual" loading="lazy" />
+          <img
+            src={productImage}
+            alt={product.name}
+            className="product-image-visual"
+            loading="lazy"
+            onError={(event) => {
+              event.currentTarget.onerror = null;
+              event.currentTarget.src = fallbackProductImage;
+            }}
+          />
         </div>
       </Link>
 

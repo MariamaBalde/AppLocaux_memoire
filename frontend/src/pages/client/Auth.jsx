@@ -29,6 +29,22 @@ function getPasswordStrength(password) {
   return { level: 'Fort', color: 'bg-green-500', text: 'text-green-600' };
 }
 
+function normalizeFieldErrors(error) {
+  const errors = error?.errors;
+  if (!errors || typeof errors !== 'object') return {};
+
+  const normalized = {};
+  Object.entries(errors).forEach(([field, messages]) => {
+    if (Array.isArray(messages) && messages[0]) {
+      normalized[field] = String(messages[0]);
+    } else if (typeof messages === 'string') {
+      normalized[field] = messages;
+    }
+  });
+
+  return normalized;
+}
+
 export default function Auth() {
   const navigate = useNavigate();
   const { login, register: registerUser } = useAuth();
@@ -38,6 +54,8 @@ export default function Auth() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loginErrors, setLoginErrors] = useState({});
+  const [registerErrors, setRegisterErrors] = useState({});
 
   // Login form
   const [loginForm, setLoginForm] = useState({
@@ -65,6 +83,7 @@ export default function Auth() {
 
   const handleLoginChange = (e) => {
     const { name, type, checked, value } = e.target;
+    setLoginErrors((prev) => ({ ...prev, [name]: '' }));
     setLoginForm((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
@@ -73,6 +92,7 @@ export default function Auth() {
 
   const handleRegisterChange = (e) => {
     const { name, value, type, checked } = e.target;
+    setRegisterErrors((prev) => ({ ...prev, [name]: '' }));
     if (type === 'checkbox') {
       setRegisterForm((prev) => ({
         ...prev,
@@ -94,10 +114,15 @@ export default function Auth() {
 
     try {
       setLoading(true);
+      setLoginErrors({});
       await login(loginForm.email.trim(), loginForm.password);
       toast.success('Connexion réussie !');
       navigate('/');
     } catch (error) {
+      const fieldErrors = normalizeFieldErrors(error);
+      if (Object.keys(fieldErrors).length > 0) {
+        setLoginErrors(fieldErrors);
+      }
       toast.error(error?.message || 'Email ou mot de passe incorrect');
     } finally {
       setLoading(false);
@@ -148,20 +173,34 @@ export default function Auth() {
 
     try {
       setLoading(true);
+      setRegisterErrors({});
       const payload = {
         ...registerForm,
         name: registerForm.name.trim(),
         email: registerForm.email.trim(),
         phone: registerForm.phone.trim(),
         address: registerForm.address.trim(),
-        shop_name: registerForm.role === 'vendeur' ? registerForm.shop_name.trim() : '',
-        shop_description: registerForm.role === 'vendeur' ? registerForm.shop_description.trim() : '',
+        ...(registerForm.role === 'vendeur'
+          ? {
+              shop_name: registerForm.shop_name.trim(),
+              shop_description: registerForm.shop_description.trim(),
+            }
+          : {}),
       };
 
-      await registerUser(payload);
-      toast.success('Inscription réussie ! Bienvenue sur AfriMarket');
-      navigate('/');
+      const result = await registerUser(payload);
+      if (result?.requiresEmailVerification) {
+        toast.success('Inscription réussie. Vérifiez votre email pour activer votre compte.');
+        navigate('/verify-email');
+      } else {
+        toast.success('Inscription réussie ! Bienvenue sur AfriMarket');
+        navigate('/');
+      }
     } catch (error) {
+      const fieldErrors = normalizeFieldErrors(error);
+      if (Object.keys(fieldErrors).length > 0) {
+        setRegisterErrors(fieldErrors);
+      }
       toast.error(error?.message || 'Erreur lors de l\'inscription');
     } finally {
       setLoading(false);
@@ -260,6 +299,9 @@ export default function Auth() {
                     className="w-full px-4 py-2.5 border border-[#e8d5c4] rounded-lg focus:outline-none focus:border-[#cb6b2f]"
                     disabled={loading}
                   />
+                  {loginErrors.email && (
+                    <p className="mt-1 text-xs text-red-600">{loginErrors.email}</p>
+                  )}
                 </div>
 
                 <div>
@@ -282,6 +324,9 @@ export default function Auth() {
                       {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
+                  {loginErrors.password && (
+                    <p className="mt-1 text-xs text-red-600">{loginErrors.password}</p>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between py-2">
@@ -296,7 +341,11 @@ export default function Auth() {
                     />
                     <span className="text-sm text-[#6f6156]">Se souvenir de moi</span>
                   </label>
-                  <button type="button" className="text-sm text-[#cb6b2f] hover:underline font-medium">
+                  <button
+                    type="button"
+                    className="text-sm text-[#cb6b2f] hover:underline font-medium"
+                    onClick={() => navigate('/forgot-password')}
+                  >
                     Mot de passe oublié ?
                   </button>
                 </div>
@@ -405,6 +454,9 @@ export default function Auth() {
                         placeholder="exemple@email.com"
                         className="w-full px-4 py-2.5 border border-[#e8d5c4] rounded-lg focus:outline-none focus:border-[#cb6b2f]"
                       />
+                      {registerErrors.email && (
+                        <p className="mt-1 text-xs text-red-600">{registerErrors.email}</p>
+                      )}
                     </div>
 
                     <div>
@@ -426,6 +478,9 @@ export default function Auth() {
                           {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                         </button>
                       </div>
+                      {registerErrors.password && (
+                        <p className="mt-1 text-xs text-red-600">{registerErrors.password}</p>
+                      )}
                       {registerForm.password && (
                         <div className="mt-2 flex items-center gap-2">
                           <div className={`h-1.5 w-12 rounded-full ${passwordStrength.color}`}></div>
@@ -453,6 +508,9 @@ export default function Auth() {
                           {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                         </button>
                       </div>
+                      {registerErrors.password_confirmation && (
+                        <p className="mt-1 text-xs text-red-600">{registerErrors.password_confirmation}</p>
+                      )}
                     </div>
                   </>
                 )}
@@ -470,6 +528,9 @@ export default function Auth() {
                         placeholder="Jean Dupont"
                         className="w-full px-4 py-2.5 border border-[#e8d5c4] rounded-lg focus:outline-none focus:border-[#cb6b2f]"
                       />
+                      {registerErrors.name && (
+                        <p className="mt-1 text-xs text-red-600">{registerErrors.name}</p>
+                      )}
                     </div>
 
                     <div>
@@ -482,6 +543,9 @@ export default function Auth() {
                         placeholder="+221 77 123 45 67"
                         className="w-full px-4 py-2.5 border border-[#e8d5c4] rounded-lg focus:outline-none focus:border-[#cb6b2f]"
                       />
+                      {registerErrors.phone && (
+                        <p className="mt-1 text-xs text-red-600">{registerErrors.phone}</p>
+                      )}
                     </div>
 
                     <div>
@@ -498,6 +562,9 @@ export default function Auth() {
                         <option value="CA">🇨🇦 Canada</option>
                         <option value="DE">🇩🇪 Allemagne</option>
                       </select>
+                      {registerErrors.country && (
+                        <p className="mt-1 text-xs text-red-600">{registerErrors.country}</p>
+                      )}
                     </div>
 
                     {registerForm.role === 'vendeur' && (
@@ -512,6 +579,9 @@ export default function Auth() {
                             placeholder="Ex: Délices du Sénégal"
                             className="w-full px-4 py-2.5 border border-[#e8d5c4] rounded-lg focus:outline-none focus:border-[#cb6b2f]"
                           />
+                          {registerErrors.shop_name && (
+                            <p className="mt-1 text-xs text-red-600">{registerErrors.shop_name}</p>
+                          )}
                         </div>
                       </>
                     )}
@@ -531,6 +601,9 @@ export default function Auth() {
                         placeholder="123 rue de la Paix, Dakar"
                         className="w-full px-4 py-2.5 border border-[#e8d5c4] rounded-lg focus:outline-none focus:border-[#cb6b2f]"
                       />
+                      {registerErrors.address && (
+                        <p className="mt-1 text-xs text-red-600">{registerErrors.address}</p>
+                      )}
                     </div>
 
                     {registerForm.role === 'vendeur' && (
@@ -543,6 +616,9 @@ export default function Auth() {
                           placeholder="Décrivez votre boutique..."
                           className="w-full px-4 py-2.5 border border-[#e8d5c4] rounded-lg focus:outline-none focus:border-[#cb6b2f] h-24 resize-none"
                         />
+                        {registerErrors.shop_description && (
+                          <p className="mt-1 text-xs text-red-600">{registerErrors.shop_description}</p>
+                        )}
                       </div>
                     )}
                   </>

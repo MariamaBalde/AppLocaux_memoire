@@ -29,12 +29,29 @@ class RegisterRequest extends FormRequest
             'role' => ['required', 'in:client,vendeur'],
             'phone' => ['nullable', 'string', 'max:20'],
             'address' => ['nullable', 'string'],
-            'country' => ['nullable', 'string', 'max:100'],
+            'country' => ['required', 'string', 'size:2'],
             
             // Champs vendeur (requis si role = vendeur)
-            'shop_name' => ['required_if:role,vendeur', 'string', 'max:255'],
-            'shop_description' => ['nullable', 'string'],
+            'shop_name' => ['exclude_unless:role,vendeur', 'required_if:role,vendeur', 'string', 'max:255'],
+            'shop_description' => ['exclude_unless:role,vendeur', 'nullable', 'string'],
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $role = strtolower((string) $this->input('role', ''));
+
+        $data = [
+            'role' => $role,
+        ];
+
+        if ($role !== 'vendeur') {
+            // Pour un client, on ignore totalement les champs boutique.
+            $data['shop_name'] = null;
+            $data['shop_description'] = null;
+        }
+
+        $this->merge($data);
     }
 
 

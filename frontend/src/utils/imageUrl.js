@@ -33,5 +33,15 @@ export function resolveImageUrl(rawUrl, fallback = '') {
     return `${getApiOrigin()}/${trimmed}`;
   }
 
+  // Données seed legacy: "products/xxx.jpg" (sans /storage)
+  if (trimmed.startsWith('products/')) {
+    return `${getApiOrigin()}/storage/${trimmed}`;
+  }
+
+  // Données legacy: "/products/xxx.jpg"
+  if (trimmed.startsWith('/products/')) {
+    return `${getApiOrigin()}/storage${trimmed}`;
+  }
+
   return trimmed;
 }

@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import VendorShell from '../../components/vendor/VendorShell';
 import { categoryService } from '../../services/categoryService';
 import { cloudinaryService } from '../../services/cloudinaryService';
 import { productService } from '../../services/productService';
 import { vendorDashboardService } from '../../services/vendorDashboardService';
+import { vendorProductSchema } from '../../utils/formSchemas';
 
 function initialForm() {
   return {
@@ -18,9 +21,24 @@ function initialForm() {
   };
 }
 
+function normalizeFieldErrors(error) {
+  const errors = error?.errors;
+  if (!errors || typeof errors !== 'object') return {};
+
+  const normalized = {};
+  Object.entries(errors).forEach(([field, messages]) => {
+    if (Array.isArray(messages) && messages[0]) {
+      normalized[field] = String(messages[0]);
+    } else if (typeof messages === 'string') {
+      normalized[field] = messages;
+    }
+  });
+
+  return normalized;
+}
+
 export default function VendorCreateProduct() {
   const navigate = useNavigate();
-  const [form, setForm] = useState(initialForm);
   const [images, setImages] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -29,7 +47,17 @@ export default function VendorCreateProduct() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const [pendingOrders, setPendingOrders] = useState(0);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(vendorProductSchema),
+    defaultValues: initialForm(),
+  });
 
   useEffect(() => {
     const load = async () => {
@@ -60,16 +88,9 @@ export default function VendorCreateProduct() {
     };
   }, [imagePreviews]);
 
-  const handleChange = (event) => {
-    const { name, value, type, checked } = event.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
-  };
-
   const handleImageChange = (event) => {
     const files = Array.from(event.target.files || []);
+    setFieldErrors((prev) => ({ ...prev, images: '' }));
     const validationError = cloudinaryService.validateFiles(files);
     if (validationError) {
       setError(validationError);
@@ -83,13 +104,12 @@ export default function VendorCreateProduct() {
     setImagePreviews(files.map((file) => URL.createObjectURL(file)));
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-
+  const onSubmit = async (values) => {
     try {
       setSubmitting(true);
       setError('');
       setSuccess('');
+      setFieldErrors({});
 
       let imageUrls = [];
       if (images.length > 0) {
@@ -98,19 +118,19 @@ export default function VendorCreateProduct() {
       }
 
       const payload = {
-        category_id: Number(form.category_id),
-        name: form.name,
-        description: form.description,
-        price: Number(form.price),
-        stock: Number(form.stock),
-        is_active: Boolean(form.is_active),
-        ...(form.weight !== '' ? { weight: Number(form.weight) } : {}),
+        category_id: Number(values.category_id),
+        name: values.name,
+        description: values.description,
+        price: Number(values.price),
+        stock: Number(values.stock),
+        is_active: Boolean(values.is_active),
+        ...(values.weight !== '' ? { weight: Number(values.weight) } : {}),
         ...(imageUrls.length > 0 ? { image_urls: imageUrls } : {}),
       };
 
       await productService.createProduct(payload);
       setSuccess('Produit créé avec succès.');
-      setForm(initialForm());
+      reset(initialForm());
       setImages([]);
       setImagePreviews([]);
 
@@ -118,10 +138,12 @@ export default function VendorCreateProduct() {
         navigate('/vendeur/products');
       }, 700);
     } catch (err) {
-      if (err?.errors && typeof err.errors === 'object') {
-        const first = Object.values(err.errors)[0];
-        if (Array.isArray(first) && first[0]) {
-          setError(first[0]);
+      const normalizedErrors = normalizeFieldErrors(err);
+      if (Object.keys(normalizedErrors).length > 0) {
+        setFieldErrors(normalizedErrors);
+        const first = Object.values(normalizedErrors)[0];
+        if (first) {
+          setError(first);
           return;
         }
       }
@@ -152,7 +174,7 @@ export default function VendorCreateProduct() {
           {success && <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">{success}</div>}
 
           <form
-            onSubmit={handleSubmit}
+            onSubmit={handleSubmit(onSubmit)}
             className={[
               'rounded-2xl border p-5 shadow-sm space-y-4',
               darkMode ? 'border-amber-700/30 bg-[#2a160e]' : 'border-amber-100 bg-white',
@@ -166,23 +188,22 @@ export default function VendorCreateProduct() {
                   <label className="text-sm">
                     <span className={darkMode ? 'mb-1 block text-amber-200/80' : 'mb-1 block text-[#7c4f2a]'}>Nom *</span>
                     <input
-                      name="name"
-                      value={form.name}
-                      onChange={handleChange}
+                      {...register('name')}
                       required
                       className={[
                         'w-full rounded-lg border px-3 py-2',
                         darkMode ? 'border-amber-700/40 bg-[#1f120c] text-amber-50' : 'border-amber-200 bg-white text-[#2b1308]',
                       ].join(' ')}
                     />
+                    {(errors.name?.message || fieldErrors.name) && (
+                      <p className="mt-1 text-xs text-red-600">{errors.name?.message || fieldErrors.name}</p>
+                    )}
                   </label>
 
                   <label className="text-sm">
                     <span className={darkMode ? 'mb-1 block text-amber-200/80' : 'mb-1 block text-[#7c4f2a]'}>Catégorie *</span>
                     <select
-                      name="category_id"
-                      value={form.category_id}
-                      onChange={handleChange}
+                      {...register('category_id')}
                       required
                       className={[
                         'w-full rounded-lg border px-3 py-2',
@@ -195,16 +216,17 @@ export default function VendorCreateProduct() {
                           {category.name}
                         </option>
                       ))}
-                    </select>
+                      </select>
+                    {(errors.category_id?.message || fieldErrors.category_id) && (
+                        <p className="mt-1 text-xs text-red-600">{errors.category_id?.message || fieldErrors.category_id}</p>
+                      )}
                   </label>
                 </div>
 
                 <label className="block text-sm">
                   <span className={darkMode ? 'mb-1 block text-amber-200/80' : 'mb-1 block text-[#7c4f2a]'}>Description *</span>
                   <textarea
-                    name="description"
-                    value={form.description}
-                    onChange={handleChange}
+                    {...register('description')}
                     required
                     rows={4}
                     className={[
@@ -212,6 +234,9 @@ export default function VendorCreateProduct() {
                       darkMode ? 'border-amber-700/40 bg-[#1f120c] text-amber-50' : 'border-amber-200 bg-white text-[#2b1308]',
                     ].join(' ')}
                   />
+                  {(errors.description?.message || fieldErrors.description) && (
+                    <p className="mt-1 text-xs text-red-600">{errors.description?.message || fieldErrors.description}</p>
+                  )}
                 </label>
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -221,15 +246,16 @@ export default function VendorCreateProduct() {
                       type="number"
                       min="0"
                       step="0.01"
-                      name="price"
-                      value={form.price}
-                      onChange={handleChange}
+                      {...register('price')}
                       required
                       className={[
                         'w-full rounded-lg border px-3 py-2',
                         darkMode ? 'border-amber-700/40 bg-[#1f120c] text-amber-50' : 'border-amber-200 bg-white text-[#2b1308]',
                       ].join(' ')}
                     />
+                    {(errors.price?.message || fieldErrors.price) && (
+                      <p className="mt-1 text-xs text-red-600">{errors.price?.message || fieldErrors.price}</p>
+                    )}
                   </label>
 
                   <label className="text-sm">
@@ -237,15 +263,16 @@ export default function VendorCreateProduct() {
                     <input
                       type="number"
                       min="0"
-                      name="stock"
-                      value={form.stock}
-                      onChange={handleChange}
+                      {...register('stock')}
                       required
                       className={[
                         'w-full rounded-lg border px-3 py-2',
                         darkMode ? 'border-amber-700/40 bg-[#1f120c] text-amber-50' : 'border-amber-200 bg-white text-[#2b1308]',
                       ].join(' ')}
                     />
+                    {(errors.stock?.message || fieldErrors.stock) && (
+                      <p className="mt-1 text-xs text-red-600">{errors.stock?.message || fieldErrors.stock}</p>
+                    )}
                   </label>
 
                   <label className="text-sm">
@@ -254,14 +281,15 @@ export default function VendorCreateProduct() {
                       type="number"
                       min="0"
                       step="0.01"
-                      name="weight"
-                      value={form.weight}
-                      onChange={handleChange}
+                      {...register('weight')}
                       className={[
                         'w-full rounded-lg border px-3 py-2',
                         darkMode ? 'border-amber-700/40 bg-[#1f120c] text-amber-50' : 'border-amber-200 bg-white text-[#2b1308]',
                       ].join(' ')}
                     />
+                    {(errors.weight?.message || fieldErrors.weight) && (
+                      <p className="mt-1 text-xs text-red-600">{errors.weight?.message || fieldErrors.weight}</p>
+                    )}
                   </label>
                 </div>
 
@@ -277,6 +305,12 @@ export default function VendorCreateProduct() {
                       darkMode ? 'border-amber-700/40 bg-[#1f120c] text-amber-50' : 'border-amber-200 bg-white text-[#2b1308]',
                     ].join(' ')}
                   />
+                  {fieldErrors.images && (
+                    <p className="mt-1 text-xs text-red-600">{fieldErrors.images}</p>
+                  )}
+                  {fieldErrors.image_urls && (
+                    <p className="mt-1 text-xs text-red-600">{fieldErrors.image_urls}</p>
+                  )}
                 </label>
 
                 {imagePreviews.length > 0 && (
@@ -295,9 +329,7 @@ export default function VendorCreateProduct() {
                 <label className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
-                    name="is_active"
-                    checked={form.is_active}
-                    onChange={handleChange}
+                    {...register('is_active')}
                   />
                   <span className={darkMode ? 'text-amber-100' : 'text-[#2b1308]'}>Publier ce produit immédiatement</span>
                 </label>

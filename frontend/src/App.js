@@ -1,11 +1,12 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
+import { I18nProvider } from './context/I18nContext';
 
 // Pages
-import Auth from './pages/client/Auth';
-import Home from './pages/client/Home';
+import Login from './pages/client/Login';
+import Register from './pages/client/Register';
 import Shipping from './pages/client/Shipping';
 import About from './pages/client/About';
 import Vendors from './pages/client/Vendors';
@@ -17,9 +18,14 @@ import Orders from './pages/client/Orders';
 import OrderDetail from './pages/client/OrderDetail';
 import OrderConfirmation from './pages/client/OrderConfirmation';
 import Profile from './pages/client/Profile';
+import ForgotPassword from './pages/client/ForgotPassword';
+import ResetPassword from './pages/client/ResetPassword';
+import VerifyEmailNotice from './pages/client/VerifyEmailNotice';
+import CheckoutPayment from './pages/client/CheckoutPayment';
 import VendorDashboard from './pages/vendor/Dashboard';
 import ManageProducts from './pages/vendor/ManageProducts';
 import VendorCreateProduct from './pages/vendor/CreateProduct';
+import VendorEditProduct from './pages/vendor/EditProduct';
 import VendorOrders from './pages/vendor/Orders';
 import VendorOrderDetail from './pages/vendor/OrderDetail';
 import VendorShipments from './pages/vendor/Shipments';
@@ -29,6 +35,8 @@ import VendorShopProfile from './pages/vendor/ShopProfile';
 import VendorSettings from './pages/vendor/Settings';
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminCreateProductForVendor from './pages/admin/CreateProductForVendor';
+import AdminManageProducts from './pages/admin/ManageProducts';
+import AdminSettings from './pages/admin/Settings';
 
 function normalizeRole(role) {
   if (!role || typeof role !== 'string') return '';
@@ -87,7 +95,7 @@ function AppRoutes() {
         path="/login"
         element={
           <PublicOnlyRoute>
-            <Auth />
+            <Login />
           </PublicOnlyRoute>
         }
       />
@@ -95,12 +103,15 @@ function AppRoutes() {
         path="/register"
         element={
           <PublicOnlyRoute>
-            <Auth />
+            <Register />
           </PublicOnlyRoute>
         }
       />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/verify-email" element={<VerifyEmailNotice />} />
       <Route path="/" element={<Products />} />
-      <Route path="/home" element={<Home />} />
+      <Route path="/home" element={<Navigate to="/products" replace />} />
       <Route path="/shipping" element={<Shipping />} />
       <Route path="/shipping-info" element={<Shipping />} />
       <Route path="/about" element={<About />} />
@@ -130,6 +141,14 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/checkout/payment"
+        element={
+          <ProtectedRoute>
+            <CheckoutPayment />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/orders"
         element={
           <ProtectedRoute>
@@ -154,7 +173,23 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/order-confirmation"
+        element={
+          <ProtectedRoute>
+            <OrderConfirmation />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/profile"
+        element={
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/profile/edit"
         element={
           <ProtectedRoute>
             <Profile />
@@ -194,6 +229,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={['vendeur']}>
             <VendorCreateProduct />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/vendeur/products/:id/edit"
+        element={
+          <ProtectedRoute allowedRoles={['vendeur']}>
+            <VendorEditProduct />
           </ProtectedRoute>
         }
       />
@@ -254,6 +297,19 @@ function AppRoutes() {
         }
       />
 
+      {/* Aliases seller */}
+      <Route path="/seller/dashboard" element={<Navigate to="/vendeur/dashboard" replace />} />
+      <Route path="/seller/products" element={<Navigate to="/vendeur/products" replace />} />
+      <Route path="/seller/products/new" element={<Navigate to="/vendeur/products/new" replace />} />
+      <Route path="/seller/products/:id/edit" element={<SellerProductEditAliasRedirect />} />
+      <Route path="/seller/orders" element={<Navigate to="/vendeur/orders" replace />} />
+      <Route path="/seller/orders/:id" element={<SellerOrderAliasRedirect />} />
+      <Route path="/seller/shipments" element={<Navigate to="/vendeur/shipments" replace />} />
+      <Route path="/seller/revenue" element={<Navigate to="/vendeur/revenue" replace />} />
+      <Route path="/seller/statistics" element={<Navigate to="/vendeur/statistics" replace />} />
+      <Route path="/seller/shop-profile" element={<Navigate to="/vendeur/shop-profile" replace />} />
+      <Route path="/seller/settings" element={<Navigate to="/vendeur/settings" replace />} />
+
       {/* Routes admin */}
       <Route
         path="/admin/dashboard"
@@ -264,10 +320,50 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/admin/vendors"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/clients"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/orders"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/products"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminManageProducts />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/admin/products/create"
         element={
           <ProtectedRoute allowedRoles={['admin']}>
             <AdminCreateProductForVendor />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/settings"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminSettings />
           </ProtectedRoute>
         }
       />
@@ -293,15 +389,27 @@ function DashboardRedirect() {
   return <Navigate to={getDefaultRouteForRole(user?.role)} replace />;
 }
 
+function SellerOrderAliasRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/vendeur/orders/${id}`} replace />;
+}
+
+function SellerProductEditAliasRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/vendeur/products/${id}/edit`} replace />;
+}
+
 function App() {
   return (
     <Router>
-      <AuthProvider>
-        <CartProvider>
-          <Toaster position="top-right" />
-          <AppRoutes />
-        </CartProvider>
-      </AuthProvider>
+      <I18nProvider>
+        <AuthProvider>
+          <CartProvider>
+            <Toaster position="top-right" />
+            <AppRoutes />
+          </CartProvider>
+        </AuthProvider>
+      </I18nProvider>
     </Router>
   );
 }

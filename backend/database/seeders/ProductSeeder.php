@@ -6,9 +6,87 @@ use App\Models\Product;
 use App\Models\Category;
 use App\Models\Vendeur;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Http;
 
 class ProductSeeder extends Seeder
 {
+    private function cloudinaryConfig(): array
+    {
+        return [
+            'cloud_name' => (string) (
+                env('CLOUDINARY_CLOUD_NAME')
+                ?: env('REACT_APP_CLOUDINARY_CLOUD_NAME')
+            ),
+            'upload_preset' => (string) (
+                env('CLOUDINARY_UPLOAD_PRESET')
+                ?: env('REACT_APP_CLOUDINARY_UPLOAD_PRESET')
+            ),
+            'folder' => (string) (
+                env('CLOUDINARY_SEED_FOLDER') ?: 'app-produits-locaux/seed-products'
+            ),
+        ];
+    }
+
+    private function frontendAssetPath(string $filename): string
+    {
+        // Le backend est dans /backend, les assets frontend dans ../frontend/src/assets/home
+        return base_path('../frontend/src/assets/home/' . ltrim($filename, '/'));
+    }
+
+    private function uploadAssetToCloudinary(string $filename, string $publicId): ?string
+    {
+        $config = $this->cloudinaryConfig();
+        if ($config['cloud_name'] === '' || $config['upload_preset'] === '') {
+            return null;
+        }
+
+        $path = $this->frontendAssetPath($filename);
+        if (!is_file($path)) {
+            return null;
+        }
+
+        $endpoint = sprintf(
+            'https://api.cloudinary.com/v1_1/%s/image/upload',
+            $config['cloud_name']
+        );
+
+        $handle = fopen($path, 'r');
+        if (!$handle) {
+            return null;
+        }
+
+        try {
+            $response = Http::asMultipart()
+                ->attach('file', $handle, basename($path))
+                ->post($endpoint, [
+                    'upload_preset' => $config['upload_preset'],
+                    'folder' => $config['folder'],
+                    'public_id' => $publicId,
+                    'overwrite' => 'true',
+                ]);
+        } finally {
+            fclose($handle);
+        }
+
+        if (!$response->successful()) {
+            $this->command?->warn('Cloudinary upload échoué pour ' . $filename . ': ' . $response->body());
+            return null;
+        }
+
+        return (string) ($response->json('secure_url') ?: '');
+    }
+
+    private function resolveImageUrl(string $fallbackPath, string $frontendAsset, string $publicId): string
+    {
+        $cloudinaryUrl = $this->uploadAssetToCloudinary($frontendAsset, $publicId);
+        if (!empty($cloudinaryUrl)) {
+            return $cloudinaryUrl;
+        }
+
+        // Fallback local si Cloudinary non configuré / indisponible.
+        return $fallbackPath;
+    }
+
     public function run(): void
     {
         $vendeur1 = Vendeur::first();
@@ -29,7 +107,13 @@ class ProductSeeder extends Seeder
                 'price' => 2000,
                 'stock' => 100,
                 'weight' => 0.5,
-                'images' => ['products/arachides-crues.jpg'],
+                'images' => [
+                    $this->resolveImageUrl(
+                        'products/arachides-crues.jpg',
+                        'product-shell-peanuts.jpg',
+                        'arachides-crues-500g'
+                    ),
+                ],
                 'created_by' => $vendeur1->user_id,
             ],
 
@@ -41,7 +125,13 @@ class ProductSeeder extends Seeder
                 'price' => 2500,
                 'stock' => 80,
                 'weight' => 0.5,
-                'images' => ['products/arachides-grillees.jpg'],
+                'images' => [
+                    $this->resolveImageUrl(
+                        'products/arachides-grillees.jpg',
+                        'product-golden-peanuts.jpg',
+                        'arachides-grillees-salees-500g'
+                    ),
+                ],
                 'created_by' => $vendeur1->user_id,
             ],
 
@@ -53,7 +143,13 @@ class ProductSeeder extends Seeder
                 'price' => 3000,
                 'stock' => 60,
                 'weight' => 0.25,
-                'images' => ['products/arachides-caramel.jpg'],
+                'images' => [
+                    $this->resolveImageUrl(
+                        'products/arachides-caramel.jpg',
+                        'product-caramel-bars.jpg',
+                        'arachides-caramelisees-250g'
+                    ),
+                ],
                 'created_by' => $vendeur1->user_id,
             ],
 
@@ -65,7 +161,13 @@ class ProductSeeder extends Seeder
                 'price' => 1500,
                 'stock' => 70,
                 'weight' => 0.2,
-                'images' => ['products/croquant-arachide.jpg'],
+                'images' => [
+                    $this->resolveImageUrl(
+                        'products/croquant-arachide.jpg',
+                        'product-coated-peanuts.jpg',
+                        'croquants-arachide'
+                    ),
+                ],
                 'created_by' => $vendeur2->user_id,
             ],
 
@@ -77,7 +179,13 @@ class ProductSeeder extends Seeder
                 'price' => 2000,
                 'stock' => 50,
                 'weight' => 0.2,
-                'images' => ['products/coco-caramel.jpg'],
+                'images' => [
+                    $this->resolveImageUrl(
+                        'products/coco-caramel.jpg',
+                        'coco.jpeg',
+                        'coco-caramelise'
+                    ),
+                ],
                 'created_by' => $vendeur2->user_id,
             ],
 
@@ -89,14 +197,26 @@ class ProductSeeder extends Seeder
                 'price' => 2500,
                 'stock' => 40,
                 'weight' => 0.3,
-                'images' => ['products/biscuits-sables.jpg'],
+                'images' => [
+                    $this->resolveImageUrl(
+                        'products/biscuits-sables.jpg',
+                        'khertouba1.jpg',
+                        'biscuits-sables-senegalais'
+                    ),
+                ],
                 'created_by' => $vendeur2->user_id,
             ],
 
         ];
 
         foreach ($products as $product) {
-            Product::create($product);
+            Product::updateOrCreate(
+                [
+                    'vendeur_id' => $product['vendeur_id'],
+                    'name' => $product['name'],
+                ],
+                $product
+            );
         }
     }
 }

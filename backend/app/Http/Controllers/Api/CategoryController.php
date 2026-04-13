@@ -3,7 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreCategoryRequest;
+use App\Http\Requests\UpdateCategoryRequest;
+use App\Http\Resources\CategoryResource;
+use App\Http\Resources\ProductCollection;
+use App\Models\Category;
 use App\Services\Category\CategoryService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -20,21 +26,29 @@ class CategoryController extends Controller
      * Liste toutes les catégories (public)
      * GET /api/categories
      */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         try {
-            $categories = $this->categoryService->getAllCategories();
+            $categories = $this->categoryService->getAllCategories($request->all());
 
             return response()->json([
                 'success' => true,
-                'data' => $categories
+                'data' => CategoryResource::collection($categories->getCollection()),
+                'meta' => [
+                    'current_page' => $categories->currentPage(),
+                    'per_page' => $categories->perPage(),
+                    'last_page' => $categories->lastPage(),
+                    'from' => $categories->firstItem(),
+                    'to' => $categories->lastItem(),
+                    'total' => $categories->total(),
+                ],
             ], 200);
 
         } catch (\Exception $e) {
+            report($e);
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la récupération des catégories',
-                'error' => $e->getMessage()
+                'message' => 'Erreur lors de la récupération des catégories'
             ], 500);
         }
     }
@@ -50,7 +64,7 @@ class CategoryController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $category
+                'data' => new CategoryResource($category),
             ], 200);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -60,10 +74,10 @@ class CategoryController extends Controller
                 'errors' => $e->errors()
             ], 404);
         } catch (\Exception $e) {
+            report($e);
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la récupération de la catégorie',
-                'error' => $e->getMessage()
+                'message' => 'Erreur lors de la récupération de la catégorie'
             ], 500);
         }
     }
@@ -79,7 +93,7 @@ class CategoryController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $category
+                'data' => new CategoryResource($category),
             ], 200);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -89,10 +103,10 @@ class CategoryController extends Controller
                 'errors' => $e->errors()
             ], 404);
         } catch (\Exception $e) {
+            report($e);
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la récupération de la catégorie',
-                'error' => $e->getMessage()
+                'message' => 'Erreur lors de la récupération de la catégorie'
             ], 500);
         }
     }
@@ -101,18 +115,19 @@ class CategoryController extends Controller
      * Crée une nouvelle catégorie (admin uniquement)
      * POST /api/categories
      */
-    public function store(Request $request): JsonResponse
+    public function store(StoreCategoryRequest $request): JsonResponse
     {
         try {
+            $this->authorize('create', Category::class);
             $category = $this->categoryService->createCategory(
-                $request->all(),
+                $request->validated(),
                 $request->user()
             );
 
             return response()->json([
                 'success' => true,
                 'message' => 'Catégorie créée avec succès',
-                'data' => $category
+                'data' => new CategoryResource($category),
             ], 201);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -121,11 +136,16 @@ class CategoryController extends Controller
                 'message' => 'Erreur de validation',
                 'errors' => $e->errors()
             ], 422);
-        } catch (\Exception $e) {
+        } catch (AuthorizationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la création de la catégorie',
-                'error' => $e->getMessage()
+                'message' => 'Action non autorisée',
+            ], 403);
+        } catch (\Exception $e) {
+            report($e);
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la création de la catégorie'
             ], 500);
         }
     }
@@ -134,19 +154,23 @@ class CategoryController extends Controller
      * Met à jour une catégorie (admin uniquement)
      * PUT/PATCH /api/categories/{id}
      */
-    public function update(Request $request, int $id): JsonResponse
+    public function update(UpdateCategoryRequest $request, int $id): JsonResponse
     {
         try {
+            $categoryModel = Category::find($id);
+            if ($categoryModel) {
+                $this->authorize('update', $categoryModel);
+            }
             $category = $this->categoryService->updateCategory(
                 $id,
-                $request->all(),
+                $request->validated(),
                 $request->user()
             );
 
             return response()->json([
                 'success' => true,
                 'message' => 'Catégorie mise à jour avec succès',
-                'data' => $category
+                'data' => new CategoryResource($category),
             ], 200);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -155,11 +179,16 @@ class CategoryController extends Controller
                 'message' => 'Erreur de validation',
                 'errors' => $e->errors()
             ], 422);
-        } catch (\Exception $e) {
+        } catch (AuthorizationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la mise à jour de la catégorie',
-                'error' => $e->getMessage()
+                'message' => 'Action non autorisée',
+            ], 403);
+        } catch (\Exception $e) {
+            report($e);
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la mise à jour de la catégorie'
             ], 500);
         }
     }
@@ -171,6 +200,10 @@ class CategoryController extends Controller
     public function destroy(Request $request, int $id): JsonResponse
     {
         try {
+            $categoryModel = Category::find($id);
+            if ($categoryModel) {
+                $this->authorize('delete', $categoryModel);
+            }
             $result = $this->categoryService->deleteCategory(
                 $id,
                 $request->user()
@@ -187,11 +220,16 @@ class CategoryController extends Controller
                 'message' => 'Erreur',
                 'errors' => $e->errors()
             ], 422);
-        } catch (\Exception $e) {
+        } catch (AuthorizationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la suppression de la catégorie',
-                'error' => $e->getMessage()
+                'message' => 'Action non autorisée',
+            ], 403);
+        } catch (\Exception $e) {
+            report($e);
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la suppression de la catégorie'
             ], 500);
         }
     }
@@ -208,7 +246,7 @@ class CategoryController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $products
+                'data' => new ProductCollection($products),
             ], 200);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -218,10 +256,10 @@ class CategoryController extends Controller
                 'errors' => $e->errors()
             ], 404);
         } catch (\Exception $e) {
+            report($e);
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la récupération des produits',
-                'error' => $e->getMessage()
+                'message' => 'Erreur lors de la récupération des produits'
             ], 500);
         }
     }

@@ -28,37 +28,49 @@ class AuthService implements AuthServiceInterface
      */
     public function register(array $data): array
     {
-        $validated = $this->validationService->validateRegistrationData($data);
-
         // Utiliser une transaction pour garantir l'atomicité
-        return DB::transaction(function () use ($validated) {
+        $user = DB::transaction(function () use ($data) {
             $user = User::create([
-                'name' => $validated['name'],
-                'email' => $validated['email'],
-                'password' => Hash::make($validated['password']),
-                'role' => $validated['role'],
-                'phone' => $validated['phone'] ?? null,
-                'address' => $validated['address'] ?? null,
-                'country' => $validated['country'],
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'password' => Hash::make($data['password']),
+                'role' => $data['role'],
+                'phone' => $data['phone'] ?? null,
+                'address' => $data['address'] ?? null,
+                'country' => $data['country'],
                 'statut' => 'actif',
-                'email_verified_at' => now(),
+                'email_verified_at' => null,
             ]);
 
-            if ($validated['role'] === 'vendeur') {
+            if ($data['role'] === 'vendeur') {
                 Vendeur::create([
                     'user_id' => $user->id,
-                    'shop_name' => $validated['shop_name'],
-                    'description' => $validated['shop_description'] ?? null,
+                    'shop_name' => $data['shop_name'],
+                    'description' => $data['shop_description'] ?? null,
                     'verified' => false,
                     'rating' => 0,
                     'total_sales' => 0,
                 ]);
             }
 
-            $tokenResult = $user->createToken('Personal Access Token');
-
-            return $this->formatAuthResponse($user, $tokenResult);
+            return $user;
         });
+
+        $verificationSent = false;
+        try {
+            if (!$user->hasVerifiedEmail()) {
+                $user->sendEmailVerificationNotification();
+                $verificationSent = true;
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        return [
+            'user' => $user->load('vendeur'),
+            'requires_email_verification' => true,
+            'verification_sent' => $verificationSent,
+        ];
     }
 
     /**
@@ -66,9 +78,7 @@ class AuthService implements AuthServiceInterface
      */
     public function login(array $credentials): array
     {
-        $validated = $this->validationService->validateLoginCredentials($credentials);
-
-        $user = User::where('email', $validated['email'])->first();
+        $user = User::where('email', $credentials['email'])->first();
 
         if (!$user) {
             throw ValidationException::withMessages([
@@ -76,7 +86,7 @@ class AuthService implements AuthServiceInterface
             ]);
         }
 
-        if (!Auth::attempt($validated)) {
+        if (!Auth::attempt($credentials)) {
             throw ValidationException::withMessages([
                 'password' => ['Le mot de passe est incorrect.'],
             ]);

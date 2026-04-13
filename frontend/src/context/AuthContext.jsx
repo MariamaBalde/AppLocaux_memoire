@@ -10,12 +10,25 @@ export function AuthProvider({ children }) {
 
   // Charger l'utilisateur au montage
   useEffect(() => {
-    const currentUser = authService.getCurrentUser();
-    if (currentUser) {
-      setUser(currentUser);
-      setIsAuthenticated(true);
-    }
-    setIsLoading(false);
+    let mounted = true;
+
+    const bootstrap = async () => {
+      try {
+        const state = await authService.bootstrapAuth();
+        if (!mounted) return;
+        setUser(state.user);
+        setIsAuthenticated(state.isAuthenticated);
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    bootstrap();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const login = async (email, password) => {
@@ -32,8 +45,13 @@ export function AuthProvider({ children }) {
   const register = async (userData) => {
     try {
       const result = await authService.register(userData);
-      setUser(result.user);
-      setIsAuthenticated(true);
+      if (result?.token && result?.user) {
+        setUser(result.user);
+        setIsAuthenticated(true);
+      } else {
+        setUser(null);
+        setIsAuthenticated(false);
+      }
       return result;
     } catch (error) {
       throw error;

@@ -19,6 +19,7 @@ class Product extends Model
         'images',
         'weight',
         'is_active',
+        'featured',
         'created_by',
         'updated_by',
     ];
@@ -28,6 +29,7 @@ class Product extends Model
         'weight' => 'decimal:2',
         'images' => 'array',
         'is_active' => 'boolean',
+        'featured' => 'boolean',
     ];
 
     public function vendeur()

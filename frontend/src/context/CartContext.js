@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { cartService } from '../services/cartService';
+import { authStorage } from '../services/authStorage';
 
 const CartContext = createContext();
 
 function hasAuthToken() {
-  return Boolean(localStorage.getItem('token'));
+  return Boolean(authStorage.getToken() || authStorage.getUser());
 }
 
 function normalizeCart(payload) {
@@ -17,8 +18,16 @@ function normalizeCart(payload) {
 
   const data = payload.data || payload;
   const items = data.items || data.cart_items || data.cart || [];
-  const total = Number(data.total_amount ?? data.total ?? 0);
-  return { items: Array.isArray(items) ? items : [], total };
+  const totalFromApi = Number(data.total_amount ?? data.total ?? data.subtotal ?? 0);
+  const totalFallback = (Array.isArray(items) ? items : []).reduce((sum, item) => {
+    const unitPrice = Number(item?.product?.price ?? item?.price ?? 0);
+    const quantity = Number(item?.quantity ?? 0);
+    return sum + unitPrice * quantity;
+  }, 0);
+  return {
+    items: Array.isArray(items) ? items : [],
+    total: Number.isFinite(totalFromApi) && totalFromApi > 0 ? totalFromApi : totalFallback,
+  };
 }
 
 export function CartProvider({ children }) {
@@ -54,7 +63,6 @@ export function CartProvider({ children }) {
           setCartItems([]);
           setCartTotal(0);
         }
-        console.error('Erreur chargement panier:', error);
       } finally {
         if (mounted) {
           setIsLoading(false);
@@ -70,10 +78,11 @@ export function CartProvider({ children }) {
 
   // Mettre à jour le total quand les items changent
   useEffect(() => {
-    const computedTotal = cartItems.reduce(
-      (sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 0),
-      0
-    );
+    const computedTotal = cartItems.reduce((sum, item) => {
+      const unitPrice = Number(item?.product?.price ?? item?.price ?? 0);
+      const quantity = Number(item?.quantity ?? 0);
+      return sum + unitPrice * quantity;
+    }, 0);
     setCartTotal(computedTotal);
   }, [cartItems]);
 
@@ -97,7 +106,6 @@ export function CartProvider({ children }) {
       await refreshCart();
       return true;
     } catch (error) {
-      console.error('Erreur ajout panier:', error);
       return false;
     }
   };
@@ -108,7 +116,6 @@ export function CartProvider({ children }) {
       await refreshCart();
       return true;
     } catch (error) {
-      console.error('Erreur suppression panier:', error);
       return false;
     }
   };
@@ -122,7 +129,6 @@ export function CartProvider({ children }) {
       await refreshCart();
       return true;
     } catch (error) {
-      console.error('Erreur mise a jour panier:', error);
       return false;
     }
   };
@@ -134,7 +140,6 @@ export function CartProvider({ children }) {
       setCartTotal(0);
       return true;
     } catch (error) {
-      console.error('Erreur vidage panier:', error);
       return false;
     }
   };

@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { devError } from '../utils/logger';
 
 /**
  * Hook pour gérer les requêtes asynchrones
@@ -112,7 +113,7 @@ export function useLocalStorage(key, initialValue) {
       const item = window.localStorage.getItem(key);
       return item ? JSON.parse(item) : initialValue;
     } catch (error) {
-      console.error(error);
+      devError(error);
       return initialValue;
     }
   });
@@ -123,7 +124,7 @@ export function useLocalStorage(key, initialValue) {
       setStoredValue(valueToStore);
       window.localStorage.setItem(key, JSON.stringify(valueToStore));
     } catch (error) {
-      console.error(error);
+      devError(error);
     }
   }, [key, storedValue]);
 

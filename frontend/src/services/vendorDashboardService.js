@@ -25,6 +25,7 @@ export const vendorDashboardService = {
           monthlyRevenue: 0,
           ordersCount: 0,
           pendingCount: 0,
+          totalProducts: 0,
           activeProducts: 0,
           outOfStockProducts: 0,
           shopRating: 0,

@@ -3,199 +3,378 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ChangePasswordRequest;
+use App\Http\Requests\StorePaymentMethodRequest;
+use App\Http\Requests\StoreUserAddressRequest;
+use App\Http\Requests\UpdateProfileRequest;
+use App\Http\Requests\UpdateUserAddressRequest;
+use App\Http\Resources\UserAddressResource;
+use App\Http\Resources\UserPaymentMethodResource;
+use App\Http\Resources\UserResource;
 use App\Models\UserAddress;
 use App\Models\UserPaymentMethod;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
     public function profile(Request $request): JsonResponse
     {
-        return response()->json([
-            'success' => true,
-            'data' => $request->user()->load(['addresses', 'paymentMethods']),
-        ], 200);
-    }
+        try {
+            $this->authorize('view', $request->user());
 
-    public function updateProfile(Request $request): JsonResponse
-    {
-        $user = $request->user();
-
-        $validated = $request->validate([
-            'name' => 'sometimes|string|max:255',
-            'phone' => 'nullable|string|max:20',
-            'address' => 'nullable|string',
-            'country' => 'nullable|string|max:2',
-        ]);
-
-        $user->update($validated);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Profil mis à jour',
-            'data' => $user->fresh(),
-        ], 200);
-    }
-
-    public function changePassword(Request $request): JsonResponse
-    {
-        $validated = $request->validate([
-            'current_password' => 'required|string',
-            'new_password' => 'required|string|min:8',
-        ]);
-
-        $user = $request->user();
-        if (!Hash::check($validated['current_password'], $user->password)) {
-            throw ValidationException::withMessages([
-                'current_password' => ['Mot de passe actuel incorrect.'],
-            ]);
+            return response()->json([
+                'success' => true,
+                'data' => new UserResource($request->user()->load(['addresses', 'paymentMethods', 'vendeur.user'])),
+            ], 200);
+        } catch (AuthorizationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Action non autorisée',
+            ], 403);
+        } catch (\Exception $e) {
+            report($e);
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors du chargement du profil',
+            ], 500);
         }
+    }
 
-        $user->update([
-            'password' => Hash::make($validated['new_password']),
-        ]);
+    public function updateProfile(UpdateProfileRequest $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $this->authorize('update', $user);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Mot de passe mis à jour',
-        ], 200);
+            $user->update($request->validated());
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Profil mis à jour',
+                'data' => new UserResource($user->fresh()->load(['addresses', 'paymentMethods', 'vendeur.user'])),
+            ], 200);
+        } catch (AuthorizationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Action non autorisée',
+            ], 403);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur de validation',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            report($e);
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la mise à jour du profil',
+            ], 500);
+        }
+    }
+
+    public function changePassword(ChangePasswordRequest $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $this->authorize('update', $user);
+            $validated = $request->validated();
+
+            if (!Hash::check($validated['current_password'], $user->password)) {
+                throw ValidationException::withMessages([
+                    'current_password' => ['Mot de passe actuel incorrect.'],
+                ]);
+            }
+
+            $user->update([
+                'password' => Hash::make($validated['new_password']),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Mot de passe mis à jour',
+            ], 200);
+        } catch (AuthorizationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Action non autorisée',
+            ], 403);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur de validation',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            report($e);
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la mise à jour du mot de passe',
+            ], 500);
+        }
     }
 
     public function addresses(Request $request): JsonResponse
     {
-        $addresses = $request->user()->addresses()->latest()->get();
+        try {
+            $this->authorize('manageSettings', $request->user());
+            $perPage = min(max((int) $request->query('per_page', 10), 1), 100);
+            $addresses = $request->user()->addresses()->latest()->paginate($perPage);
 
-        return response()->json([
-            'success' => true,
-            'data' => $addresses,
-        ], 200);
+            return response()->json([
+                'success' => true,
+                'data' => UserAddressResource::collection($addresses->getCollection()),
+                'meta' => [
+                    'current_page' => $addresses->currentPage(),
+                    'per_page' => $addresses->perPage(),
+                    'last_page' => $addresses->lastPage(),
+                    'from' => $addresses->firstItem(),
+                    'to' => $addresses->lastItem(),
+                    'total' => $addresses->total(),
+                ],
+            ], 200);
+        } catch (AuthorizationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Action non autorisée',
+            ], 403);
+        } catch (\Exception $e) {
+            report($e);
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la récupération des adresses',
+            ], 500);
+        }
     }
 
-    public function addAddress(Request $request): JsonResponse
+    public function addAddress(StoreUserAddressRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'address' => 'required|string',
-            'zipcode' => 'nullable|string|max:20',
-            'city' => 'required|string|max:255',
-            'phone' => 'nullable|string|max:20',
-            'is_default' => 'sometimes|boolean',
-        ]);
+        try {
+            $user = $request->user();
+            $this->authorize('manageSettings', $user);
+            $validated = $request->validated();
 
-        $user = $request->user();
-        if (!empty($validated['is_default'])) {
-            $user->addresses()->update(['is_default' => false]);
+            if (!empty($validated['is_default'])) {
+                $user->addresses()->update(['is_default' => false]);
+            }
+
+            $address = $user->addresses()->create($validated);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Adresse ajoutée',
+                'data' => new UserAddressResource($address),
+            ], 201);
+        } catch (AuthorizationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Action non autorisée',
+            ], 403);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur de validation',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            report($e);
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de l\'ajout de l\'adresse',
+            ], 500);
         }
-
-        $address = $user->addresses()->create($validated);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Adresse ajoutée',
-            'data' => $address,
-        ], 201);
     }
 
-    public function updateAddress(Request $request, int $id): JsonResponse
+    public function updateAddress(UpdateUserAddressRequest $request, int $id): JsonResponse
     {
-        $address = UserAddress::where('user_id', $request->user()->id)->find($id);
-        if (!$address) {
-            throw ValidationException::withMessages([
-                'address' => ['Adresse non trouvée.'],
-            ]);
+        try {
+            $this->authorize('manageSettings', $request->user());
+            $address = UserAddress::where('user_id', $request->user()->id)->find($id);
+            if (!$address) {
+                throw ValidationException::withMessages([
+                    'address' => ['Adresse non trouvée.'],
+                ]);
+            }
+
+            $validated = $request->validated();
+
+            if (!empty($validated['is_default'])) {
+                $request->user()->addresses()->update(['is_default' => false]);
+            }
+
+            $address->update($validated);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Adresse mise à jour',
+                'data' => new UserAddressResource($address->fresh()),
+            ], 200);
+        } catch (AuthorizationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Action non autorisée',
+            ], 403);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur de validation',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            report($e);
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la mise à jour de l\'adresse',
+            ], 500);
         }
-
-        $validated = $request->validate([
-            'name' => 'sometimes|string|max:255',
-            'address' => 'sometimes|string',
-            'zipcode' => 'nullable|string|max:20',
-            'city' => 'sometimes|string|max:255',
-            'phone' => 'nullable|string|max:20',
-            'is_default' => 'sometimes|boolean',
-        ]);
-
-        if (!empty($validated['is_default'])) {
-            $request->user()->addresses()->update(['is_default' => false]);
-        }
-
-        $address->update($validated);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Adresse mise à jour',
-            'data' => $address->fresh(),
-        ], 200);
     }
 
     public function deleteAddress(Request $request, int $id): JsonResponse
     {
-        $address = UserAddress::where('user_id', $request->user()->id)->find($id);
-        if (!$address) {
-            throw ValidationException::withMessages([
-                'address' => ['Adresse non trouvée.'],
-            ]);
+        try {
+            $this->authorize('manageSettings', $request->user());
+            $address = UserAddress::where('user_id', $request->user()->id)->find($id);
+            if (!$address) {
+                throw ValidationException::withMessages([
+                    'address' => ['Adresse non trouvée.'],
+                ]);
+            }
+
+            $address->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Adresse supprimée',
+            ], 200);
+        } catch (AuthorizationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Action non autorisée',
+            ], 403);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur de validation',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            report($e);
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la suppression de l\'adresse',
+            ], 500);
         }
-
-        $address->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Adresse supprimée',
-        ], 200);
     }
 
     public function paymentMethods(Request $request): JsonResponse
     {
-        $methods = $request->user()->paymentMethods()->latest()->get();
+        try {
+            $this->authorize('manageSettings', $request->user());
+            $perPage = min(max((int) $request->query('per_page', 10), 1), 100);
+            $methods = $request->user()->paymentMethods()->latest()->paginate($perPage);
 
-        return response()->json([
-            'success' => true,
-            'data' => $methods,
-        ], 200);
+            return response()->json([
+                'success' => true,
+                'data' => UserPaymentMethodResource::collection($methods->getCollection()),
+                'meta' => [
+                    'current_page' => $methods->currentPage(),
+                    'per_page' => $methods->perPage(),
+                    'last_page' => $methods->lastPage(),
+                    'from' => $methods->firstItem(),
+                    'to' => $methods->lastItem(),
+                    'total' => $methods->total(),
+                ],
+            ], 200);
+        } catch (AuthorizationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Action non autorisée',
+            ], 403);
+        } catch (\Exception $e) {
+            report($e);
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la récupération des moyens de paiement',
+            ], 500);
+        }
     }
 
-    public function addPaymentMethod(Request $request): JsonResponse
+    public function addPaymentMethod(StorePaymentMethodRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'type' => 'sometimes|string|max:50',
-            'provider' => ['required', Rule::in(['wave', 'orange_money', 'stripe', 'paypal', 'visa'])],
-            'label' => 'nullable|string|max:255',
-            'account_number' => 'required|string|max:255',
-            'is_default' => 'sometimes|boolean',
-        ]);
+        try {
+            $user = $request->user();
+            $this->authorize('manageSettings', $user);
+            $validated = $request->validated();
 
-        $user = $request->user();
-        if (!empty($validated['is_default'])) {
-            $user->paymentMethods()->update(['is_default' => false]);
+            if (!empty($validated['is_default'])) {
+                $user->paymentMethods()->update(['is_default' => false]);
+            }
+
+            $method = $user->paymentMethods()->create($validated);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Méthode de paiement ajoutée',
+                'data' => new UserPaymentMethodResource($method),
+            ], 201);
+        } catch (AuthorizationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Action non autorisée',
+            ], 403);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur de validation',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            report($e);
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de l\'ajout de la méthode de paiement',
+            ], 500);
         }
-
-        $method = $user->paymentMethods()->create($validated);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Méthode de paiement ajoutée',
-            'data' => $method,
-        ], 201);
     }
 
     public function deletePaymentMethod(Request $request, int $id): JsonResponse
     {
-        $method = UserPaymentMethod::where('user_id', $request->user()->id)->find($id);
-        if (!$method) {
-            throw ValidationException::withMessages([
-                'payment_method' => ['Méthode de paiement non trouvée.'],
-            ]);
+        try {
+            $this->authorize('manageSettings', $request->user());
+            $method = UserPaymentMethod::where('user_id', $request->user()->id)->find($id);
+            if (!$method) {
+                throw ValidationException::withMessages([
+                    'payment_method' => ['Méthode de paiement non trouvée.'],
+                ]);
+            }
+
+            $method->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Méthode de paiement supprimée',
+            ], 200);
+        } catch (AuthorizationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Action non autorisée',
+            ], 403);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur de validation',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            report($e);
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la suppression de la méthode de paiement',
+            ], 500);
         }
-
-        $method->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Méthode de paiement supprimée',
-        ], 200);
     }
 }

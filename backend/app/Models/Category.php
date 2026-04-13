@@ -14,6 +14,7 @@ class Category extends Model
         'name',
         'slug',
         'description',
+        'icon',
     ];
 
     // Auto-generate slug

@@ -57,8 +57,20 @@ class VendorDashboardService
             ->whereIn('status', ['pending', 'processing'])
             ->count();
 
-        $products = Product::query()
-            ->where('vendeur_id', $vendeurId);
+        $products = Product::query()->where('vendeur_id', $vendeurId);
+        $totalProducts = (int) (clone $products)->count();
+        $inactiveProducts = (int) (clone $products)->where('is_active', false)->count();
+        $activeProducts = (int) (clone $products)
+            ->where(function ($query) {
+                $query->where('is_active', true)
+                    ->orWhereNull('is_active');
+            })
+            ->count();
+
+        // Compatibilite donnees legacy: certains anciens enregistrements n'ont pas de statut explicite.
+        if ($activeProducts === 0 && $totalProducts > 0 && $inactiveProducts === 0) {
+            $activeProducts = $totalProducts;
+        }
 
         $shopRating = (float) ($user->vendeur?->rating ?? 0);
         if ($shopRating <= 0) {
@@ -69,7 +81,8 @@ class VendorDashboardService
             'monthlyRevenue' => round($monthlyRevenue, 2),
             'ordersCount' => (int) $orders->count(),
             'pendingCount' => $pendingCount,
-            'activeProducts' => (int) (clone $products)->where('is_active', true)->count(),
+            'totalProducts' => $totalProducts,
+            'activeProducts' => $activeProducts,
             'outOfStockProducts' => (int) (clone $products)->where('stock', '<=', 0)->count(),
             'shopRating' => round($shopRating, 1),
         ];

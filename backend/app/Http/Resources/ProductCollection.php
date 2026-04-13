@@ -21,14 +21,25 @@ class ProductCollection extends ResourceCollection
      */
     public function toArray(Request $request): array
     {
-        return [
+        $meta = [
             'current_page' => $this->currentPage(),
-            'data' => $this->collection,
             'per_page' => $this->perPage(),
             'last_page' => $this->lastPage(),
             'from' => $this->firstItem(),
             'to' => $this->lastItem(),
             'total' => $this->total(),
+        ];
+
+        return [
+            'data' => $this->collection,
+            'meta' => $meta,
+            // Rétrocompatibilité temporaire
+            'current_page' => $meta['current_page'],
+            'per_page' => $meta['per_page'],
+            'last_page' => $meta['last_page'],
+            'from' => $meta['from'],
+            'to' => $meta['to'],
+            'total' => $meta['total'],
         ];
     }
 }

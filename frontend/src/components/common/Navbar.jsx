@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingCart, User, Search, Menu, X, LogOut } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
@@ -6,7 +6,9 @@ import { useAuth } from '../../context/AuthContext';
 
 export default function Navbar({ variant = 'default' }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const userMenuRef = useRef(null);
   const { cartCount } = useCart();
   const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -16,6 +18,7 @@ export default function Navbar({ variant = 'default' }) {
   const isCatalogVariant = variant === 'catalog';
 
   const closeMobile = () => setIsMenuOpen(false);
+  const closeUserMenu = () => setIsUserMenuOpen(false);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -30,11 +33,25 @@ export default function Navbar({ variant = 'default' }) {
     try {
       await logout();
       closeMobile();
+      closeUserMenu();
       navigate('/');
     } catch (error) {
       closeMobile();
+      closeUserMenu();
     }
   };
+
+  useEffect(() => {
+    const onDocumentMouseDown = (event) => {
+      if (!userMenuRef.current) return;
+      if (!userMenuRef.current.contains(event.target)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', onDocumentMouseDown);
+    return () => document.removeEventListener('mousedown', onDocumentMouseDown);
+  }, []);
 
   return (
     <nav
@@ -121,9 +138,10 @@ export default function Navbar({ variant = 'default' }) {
           </Link>
 
           {isAuthenticated ? (
-            <div className="group relative">
+            <div className="relative" ref={userMenuRef}>
               <button
                 type="button"
+                onClick={() => setIsUserMenuOpen((prev) => !prev)}
                 className={`flex items-center space-x-2 transition ${
                   isCatalogVariant ? 'text-amber-100 hover:text-amber-300' : 'text-gray-700 hover:text-primary'
                 }`}
@@ -131,18 +149,20 @@ export default function Navbar({ variant = 'default' }) {
                 <User className="h-6 w-6" />
                 <span className="hidden lg:block">{user?.name || 'Compte'}</span>
               </button>
-              <div className="absolute right-0 mt-2 hidden w-56 rounded-lg bg-white py-2 shadow-lg group-hover:block">
-                <Link to={profileLink} className="block px-4 py-2 text-gray-700 hover:bg-gray-100">Mon profil</Link>
-                <Link to={ordersLink} className="block px-4 py-2 text-gray-700 hover:bg-gray-100">Mes commandes</Link>
-                <hr className="my-2" />
-                <button
-                  onClick={handleLogout}
-                  className="flex w-full items-center space-x-2 px-4 py-2 text-left text-red-600 hover:bg-gray-100"
-                >
-                  <LogOut className="h-4 w-4" />
-                  <span>Déconnexion</span>
-                </button>
-              </div>
+              {isUserMenuOpen && (
+                <div className="absolute right-0 mt-2 w-56 rounded-lg bg-white py-2 shadow-lg">
+                  <Link to={profileLink} onClick={closeUserMenu} className="block px-4 py-2 text-gray-700 hover:bg-gray-100">Mon profil</Link>
+                  <Link to={ordersLink} onClick={closeUserMenu} className="block px-4 py-2 text-gray-700 hover:bg-gray-100">Mes commandes</Link>
+                  <hr className="my-2" />
+                  <button
+                    onClick={handleLogout}
+                    className="flex w-full items-center space-x-2 px-4 py-2 text-left text-red-600 hover:bg-gray-100"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span>Déconnexion</span>
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex items-center gap-2">
