@@ -23,8 +23,11 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --no-interaction --prefer-dist
 
+      - name: Ensure Mockery is available for tests
+        run: composer require --dev mockery/mockery:^1.6 --no-interaction --no-progress
+
       - name: Run backend tests
-        run: php artisan test
+        run: php vendor/bin/phpunit
 
   frontend-build:
     runs-on: ubuntu-latest
