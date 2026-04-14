@@ -23,11 +23,11 @@ class VendeurFactory extends Factory
                 'country' => 'SN',
                 'statut' => 'actif',
             ]),
-            'shop_name' => fake()->company(),
-            'description' => fake()->optional()->sentence(),
+            'shop_name' => $this->faker->company(),
+            'description' => $this->faker->optional()->sentence(),
             'verified' => true,
-            'rating' => fake()->randomFloat(1, 3, 5),
-            'total_sales' => fake()->numberBetween(0, 500),
+            'rating' => $this->faker->randomFloat(1, 3, 5),
+            'total_sales' => $this->faker->numberBetween(0, 500),
         ];
     }
 }
