@@ -11,7 +11,7 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -23,9 +23,6 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --no-interaction --prefer-dist
 
-      - name: Ensure test dependencies are available
-        run: composer require --dev mockery/mockery:^1.6 fakerphp/faker:^1.24 --no-interaction --no-progress
-
       - name: Run backend tests
         run: php vendor/bin/phpunit
 
@@ -35,10 +32,10 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '20'
           cache: 'npm'
