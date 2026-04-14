@@ -1,8 +1,14 @@
 import { render, screen } from '@testing-library/react';
-import App from './App';
+import Button from './components/common/Button';
 
-test('renders learn react link', () => {
-  render(<App />);
-  const linkElement = screen.getByText(/learn react/i);
-  expect(linkElement).toBeInTheDocument();
+describe('Button', () => {
+  test('affiche le contenu enfant', () => {
+    render(<Button>Valider</Button>);
+    expect(screen.getByRole('button', { name: 'Valider' })).toBeInTheDocument();
+  });
+
+  test('affiche le texte de chargement quand loading=true', () => {
+    render(<Button loading>Valider</Button>);
+    expect(screen.getByRole('button', { name: /Chargement/i })).toBeDisabled();
+  });
 });
