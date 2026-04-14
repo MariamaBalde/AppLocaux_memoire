@@ -16,6 +16,7 @@
         "laravel/pail": "^1.0",
         "laravel/pint": "^1.17",
         "laravel/sail": "^1.30",
+        "mockery/mockery": "^1.6",
         "phpunit/phpunit": "^11.0"
     },
     "autoload": {
