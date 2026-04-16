@@ -17,20 +17,21 @@ class CheckVendeur
     {
         $user = $request->user();
 
-        if (!$user || !$user->isVendeur()) {
+        if (! $user || ! $user->isVendeur()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Accès refusé. Réservé aux vendeurs.'
+                'message' => 'Accès refusé. Réservé aux vendeurs.',
             ], 403);
         }
 
         $vendeur = $user->vendeur()->first();
-        if (!$vendeur || !$vendeur->verified) {
+        if (! $vendeur || ! $vendeur->verified) {
             return response()->json([
                 'success' => false,
-                'message' => 'Votre compte vendeur doit être vérifié par un administrateur.'
+                'message' => 'Votre compte vendeur doit être vérifié par un administrateur.',
             ], 403);
         }
+
         return $next($request);
     }
 }

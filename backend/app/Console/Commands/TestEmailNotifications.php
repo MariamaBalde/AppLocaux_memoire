@@ -60,8 +60,9 @@ class TestEmailNotifications extends Command
 
         $order = Order::with('items.product', 'user')->first();
 
-        if (!$order) {
+        if (! $order) {
             $this->error('❌ No orders found. Create one first.');
+
             return;
         }
 
@@ -83,8 +84,9 @@ class TestEmailNotifications extends Command
 
         $order = Order::with('items.product.vendeur.user')->first();
 
-        if (!$order) {
+        if (! $order) {
             $this->error('❌ No orders found. Create one first.');
+
             return;
         }
 
@@ -92,6 +94,7 @@ class TestEmailNotifications extends Command
 
         if ($vendorIds->isEmpty()) {
             $this->error('❌ No vendors found in order items.');
+
             return;
         }
 
@@ -119,6 +122,7 @@ class TestEmailNotifications extends Command
 
         if ($vendors->isEmpty()) {
             $this->warn('   ⚠️  No unverified vendors found.');
+
             return;
         }
 
@@ -127,6 +131,7 @@ class TestEmailNotifications extends Command
 
         if ($admins->isEmpty()) {
             $this->warn('   ⚠️  No admins found.');
+
             return;
         }
 

@@ -12,8 +12,8 @@ use App\Policies\OrderPolicy;
 use App\Policies\ProductPolicy;
 use App\Policies\UserPolicy;
 use App\Policies\VendorOrderPolicy;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
+use Illuminate\Support\Facades\Gate;
 use Laravel\Passport\Passport;
 
 class AuthServiceProvider extends ServiceProvider
@@ -44,19 +44,19 @@ class AuthServiceProvider extends ServiceProvider
 
         // ✅ Enregistrer les routes Passport
         // Passport::routes(); // Déprécié en Laravel 11
-        
+
         // ✅ Configurer la durée de vie des tokens (optionnel)
         Passport::tokensExpireIn(now()->addDays(15));
         Passport::refreshTokensExpireIn(now()->addDays(30));
         Passport::personalAccessTokensExpireIn(now()->addMonths(6));
-        
+
         // // ✅ Définir les scopes (permissions) si nécessaire
         // Passport::tokensCan([
         //     'manage-products' => 'Gérer les produits',
         //     'place-orders' => 'Passer des commandes',
         //     'manage-orders' => 'Gérer les commandes',
         // ]);
-        
+
         // // Scope par défaut
         // Passport::setDefaultScope([
         //     'place-orders',

@@ -4,8 +4,8 @@ namespace App\Services\Category;
 
 use App\Models\Category;
 use App\Models\User;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class CategoryService
 {
@@ -17,11 +17,11 @@ class CategoryService
         $query = Category::withCount('products')
             ->orderBy('name', 'asc');
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $term = trim((string) $filters['search']);
             $query->where(function ($subQuery) use ($term) {
-                $subQuery->where('name', 'like', '%' . $term . '%')
-                    ->orWhere('description', 'like', '%' . $term . '%');
+                $subQuery->where('name', 'like', '%'.$term.'%')
+                    ->orWhere('description', 'like', '%'.$term.'%');
             });
         }
 
@@ -37,7 +37,7 @@ class CategoryService
     {
         $category = Category::withCount('products')->find($id);
 
-        if (!$category) {
+        if (! $category) {
             throw ValidationException::withMessages([
                 'category' => ['Catégorie non trouvée.'],
             ]);
@@ -55,7 +55,7 @@ class CategoryService
             ->withCount('products')
             ->first();
 
-        if (!$category) {
+        if (! $category) {
             throw ValidationException::withMessages([
                 'category' => ['Catégorie non trouvée.'],
             ]);
@@ -70,7 +70,7 @@ class CategoryService
     public function createCategory(array $data, User $user)
     {
         // Vérifier que l'utilisateur est admin
-        if (!$user->isAdmin()) {
+        if (! $user->isAdmin()) {
             throw ValidationException::withMessages([
                 'permission' => ['Seuls les administrateurs peuvent créer des catégories.'],
             ]);
@@ -93,7 +93,7 @@ class CategoryService
     public function updateCategory(int $id, array $data, User $user)
     {
         // Vérifier que l'utilisateur est admin
-        if (!$user->isAdmin()) {
+        if (! $user->isAdmin()) {
             throw ValidationException::withMessages([
                 'permission' => ['Seuls les administrateurs peuvent modifier des catégories.'],
             ]);
@@ -101,7 +101,7 @@ class CategoryService
 
         $category = Category::find($id);
 
-        if (!$category) {
+        if (! $category) {
             throw ValidationException::withMessages([
                 'category' => ['Catégorie non trouvée.'],
             ]);
@@ -124,7 +124,7 @@ class CategoryService
     public function deleteCategory(int $id, User $user)
     {
         // Vérifier que l'utilisateur est admin
-        if (!$user->isAdmin()) {
+        if (! $user->isAdmin()) {
             throw ValidationException::withMessages([
                 'permission' => ['Seuls les administrateurs peuvent supprimer des catégories.'],
             ]);
@@ -132,7 +132,7 @@ class CategoryService
 
         $category = Category::find($id);
 
-        if (!$category) {
+        if (! $category) {
             throw ValidationException::withMessages([
                 'category' => ['Catégorie non trouvée.'],
             ]);
@@ -159,7 +159,7 @@ class CategoryService
     {
         $category = Category::find($id);
 
-        if (!$category) {
+        if (! $category) {
             throw ValidationException::withMessages([
                 'category' => ['Catégorie non trouvée.'],
             ]);
@@ -173,7 +173,7 @@ class CategoryService
         $sortBy = $filters['sort_by'] ?? 'created_at';
         $sortOrder = strtolower((string) ($filters['sort_order'] ?? 'desc')) === 'asc' ? 'asc' : 'desc';
         $allowedSorts = ['created_at', 'updated_at', 'name', 'price', 'stock'];
-        if (!in_array($sortBy, $allowedSorts, true)) {
+        if (! in_array($sortBy, $allowedSorts, true)) {
             $sortBy = 'created_at';
         }
         $query->orderBy($sortBy, $sortOrder);

@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use App\Models\Product;
 use App\Models\Category;
+use App\Models\Product;
 use App\Models\Vendeur;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Http;
@@ -30,7 +30,7 @@ class ProductSeeder extends Seeder
     private function frontendAssetPath(string $filename): string
     {
         // Le backend est dans /backend, les assets frontend dans ../frontend/src/assets/home
-        return base_path('../frontend/src/assets/home/' . ltrim($filename, '/'));
+        return base_path('../frontend/src/assets/home/'.ltrim($filename, '/'));
     }
 
     private function uploadAssetToCloudinary(string $filename, string $publicId): ?string
@@ -41,7 +41,7 @@ class ProductSeeder extends Seeder
         }
 
         $path = $this->frontendAssetPath($filename);
-        if (!is_file($path)) {
+        if (! is_file($path)) {
             return null;
         }
 
@@ -51,7 +51,7 @@ class ProductSeeder extends Seeder
         );
 
         $handle = fopen($path, 'r');
-        if (!$handle) {
+        if (! $handle) {
             return null;
         }
 
@@ -68,8 +68,9 @@ class ProductSeeder extends Seeder
             fclose($handle);
         }
 
-        if (!$response->successful()) {
-            $this->command?->warn('Cloudinary upload échoué pour ' . $filename . ': ' . $response->body());
+        if (! $response->successful()) {
+            $this->command?->warn('Cloudinary upload échoué pour '.$filename.': '.$response->body());
+
             return null;
         }
 
@@ -79,7 +80,7 @@ class ProductSeeder extends Seeder
     private function resolveImageUrl(string $fallbackPath, string $frontendAsset, string $publicId): string
     {
         $cloudinaryUrl = $this->uploadAssetToCloudinary($frontendAsset, $publicId);
-        if (!empty($cloudinaryUrl)) {
+        if (! empty($cloudinaryUrl)) {
             return $cloudinaryUrl;
         }
 

@@ -37,6 +37,7 @@ class UserController extends Controller
             ], 403);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors du chargement du profil',
@@ -70,6 +71,7 @@ class UserController extends Controller
             ], 422);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la mise à jour du profil',
@@ -84,7 +86,7 @@ class UserController extends Controller
             $this->authorize('update', $user);
             $validated = $request->validated();
 
-            if (!Hash::check($validated['current_password'], $user->password)) {
+            if (! Hash::check($validated['current_password'], $user->password)) {
                 throw ValidationException::withMessages([
                     'current_password' => ['Mot de passe actuel incorrect.'],
                 ]);
@@ -111,6 +113,7 @@ class UserController extends Controller
             ], 422);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la mise à jour du mot de passe',
@@ -144,6 +147,7 @@ class UserController extends Controller
             ], 403);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la récupération des adresses',
@@ -158,7 +162,7 @@ class UserController extends Controller
             $this->authorize('manageSettings', $user);
             $validated = $request->validated();
 
-            if (!empty($validated['is_default'])) {
+            if (! empty($validated['is_default'])) {
                 $user->addresses()->update(['is_default' => false]);
             }
 
@@ -182,6 +186,7 @@ class UserController extends Controller
             ], 422);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de l\'ajout de l\'adresse',
@@ -194,7 +199,7 @@ class UserController extends Controller
         try {
             $this->authorize('manageSettings', $request->user());
             $address = UserAddress::where('user_id', $request->user()->id)->find($id);
-            if (!$address) {
+            if (! $address) {
                 throw ValidationException::withMessages([
                     'address' => ['Adresse non trouvée.'],
                 ]);
@@ -202,7 +207,7 @@ class UserController extends Controller
 
             $validated = $request->validated();
 
-            if (!empty($validated['is_default'])) {
+            if (! empty($validated['is_default'])) {
                 $request->user()->addresses()->update(['is_default' => false]);
             }
 
@@ -226,6 +231,7 @@ class UserController extends Controller
             ], 422);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la mise à jour de l\'adresse',
@@ -238,7 +244,7 @@ class UserController extends Controller
         try {
             $this->authorize('manageSettings', $request->user());
             $address = UserAddress::where('user_id', $request->user()->id)->find($id);
-            if (!$address) {
+            if (! $address) {
                 throw ValidationException::withMessages([
                     'address' => ['Adresse non trouvée.'],
                 ]);
@@ -263,6 +269,7 @@ class UserController extends Controller
             ], 422);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la suppression de l\'adresse',
@@ -296,6 +303,7 @@ class UserController extends Controller
             ], 403);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la récupération des moyens de paiement',
@@ -310,7 +318,7 @@ class UserController extends Controller
             $this->authorize('manageSettings', $user);
             $validated = $request->validated();
 
-            if (!empty($validated['is_default'])) {
+            if (! empty($validated['is_default'])) {
                 $user->paymentMethods()->update(['is_default' => false]);
             }
 
@@ -334,6 +342,7 @@ class UserController extends Controller
             ], 422);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de l\'ajout de la méthode de paiement',
@@ -346,7 +355,7 @@ class UserController extends Controller
         try {
             $this->authorize('manageSettings', $request->user());
             $method = UserPaymentMethod::where('user_id', $request->user()->id)->find($id);
-            if (!$method) {
+            if (! $method) {
                 throw ValidationException::withMessages([
                     'payment_method' => ['Méthode de paiement non trouvée.'],
                 ]);
@@ -371,6 +380,7 @@ class UserController extends Controller
             ], 422);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la suppression de la méthode de paiement',

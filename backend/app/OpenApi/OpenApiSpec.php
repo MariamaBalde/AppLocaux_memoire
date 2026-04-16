@@ -34,9 +34,7 @@ use OpenApi\Attributes as OA;
 #[OA\Tag(name: 'Vendor', description: 'Endpoints vendeur et dashboard vendeur')]
 #[OA\Tag(name: 'Admin', description: 'Administration et supervision')]
 #[OA\Tag(name: 'General', description: 'Endpoints divers')]
-class OpenApiSpec
-{
-}
+class OpenApiSpec {}
 
 #[OA\Schema(
     schema: 'AuthUserSummary',
@@ -54,9 +52,7 @@ class OpenApiSpec
     ],
     type: 'object'
 )]
-class AuthUserSummarySchema
-{
-}
+class AuthUserSummarySchema {}
 
 #[OA\Schema(
     schema: 'LoginRequest',
@@ -67,9 +63,7 @@ class AuthUserSummarySchema
     ],
     type: 'object'
 )]
-class LoginRequestSchema
-{
-}
+class LoginRequestSchema {}
 
 #[OA\Schema(
     schema: 'RegisterRequest',
@@ -88,21 +82,17 @@ class LoginRequestSchema
     ],
     type: 'object'
 )]
-class RegisterRequestSchema
-{
-}
+class RegisterRequestSchema {}
 
 #[OA\Schema(
     schema: 'RefreshTokenRequest',
     required: ['refresh_token'],
     properties: [
-        new OA\Property(property: 'refresh_token', type: 'string', maxLength: 4096, example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...')
+        new OA\Property(property: 'refresh_token', type: 'string', maxLength: 4096, example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'),
     ],
     type: 'object'
 )]
-class RefreshTokenRequestSchema
-{
-}
+class RefreshTokenRequestSchema {}
 
 #[OA\Schema(
     schema: 'AuthPayload',
@@ -117,9 +107,7 @@ class RefreshTokenRequestSchema
     ],
     type: 'object'
 )]
-class AuthPayloadSchema
-{
-}
+class AuthPayloadSchema {}
 
 #[OA\Schema(
     schema: 'AuthSuccessResponse',
@@ -130,9 +118,7 @@ class AuthPayloadSchema
     ],
     type: 'object'
 )]
-class AuthSuccessResponseSchema
-{
-}
+class AuthSuccessResponseSchema {}
 
 #[OA\Schema(
     schema: 'AuthUserResponse',
@@ -142,9 +128,7 @@ class AuthSuccessResponseSchema
     ],
     type: 'object'
 )]
-class AuthUserResponseSchema
-{
-}
+class AuthUserResponseSchema {}
 
 #[OA\Schema(
     schema: 'AuthMessageResponse',
@@ -154,9 +138,7 @@ class AuthUserResponseSchema
     ],
     type: 'object'
 )]
-class AuthMessageResponseSchema
-{
-}
+class AuthMessageResponseSchema {}
 
 #[OA\Schema(
     schema: 'ApiLoginSuccessResponse',
@@ -199,9 +181,7 @@ class AuthMessageResponseSchema
     ],
     type: 'object'
 )]
-class ApiLoginSuccessResponseSchema
-{
-}
+class ApiLoginSuccessResponseSchema {}
 
 #[OA\Schema(
     schema: 'ApiErrorResponse',
@@ -219,6 +199,4 @@ class ApiLoginSuccessResponseSchema
     ],
     type: 'object'
 )]
-class ApiErrorResponseSchema
-{
-}
+class ApiErrorResponseSchema {}

@@ -4,16 +4,16 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreProductRequest;
-use App\Http\Requests\UploadProductImagesRequest;
 use App\Http\Requests\UpdateProductRequest;
 use App\Http\Requests\UpdateStockRequest;
-use App\Http\Resources\ProductResource;
+use App\Http\Requests\UploadProductImagesRequest;
 use App\Http\Resources\ProductCollection;
+use App\Http\Resources\ProductResource;
 use App\Models\Product;
 use App\Services\Product\ProductService;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class ProductController extends Controller
 {
@@ -36,14 +36,15 @@ class ProductController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => new ProductCollection($paginated)
+                'data' => new ProductCollection($paginated),
             ], 200);
 
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la récupération des produits'
+                'message' => 'Erreur lors de la récupération des produits',
             ], 500);
         }
     }
@@ -59,20 +60,21 @@ class ProductController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => new ProductResource($product)
+                'data' => new ProductResource($product),
             ], 200);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Produit non trouvé',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 404);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la récupération du produit'
+                'message' => 'Erreur lors de la récupération du produit',
             ], 500);
         }
     }
@@ -93,14 +95,14 @@ class ProductController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Produit créé avec succès',
-                'data' => new ProductResource($product)
+                'data' => new ProductResource($product),
             ], 201);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur de validation',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (AuthorizationException $e) {
             return response()->json([
@@ -109,9 +111,10 @@ class ProductController extends Controller
             ], 403);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la création du produit'
+                'message' => 'Erreur lors de la création du produit',
             ], 500);
         }
     }
@@ -136,14 +139,14 @@ class ProductController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Produit mis à jour avec succès',
-                'data' => new ProductResource($product)
+                'data' => new ProductResource($product),
             ], 200);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur de validation',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (AuthorizationException $e) {
             return response()->json([
@@ -152,9 +155,10 @@ class ProductController extends Controller
             ], 403);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la mise à jour du produit'
+                'message' => 'Erreur lors de la mise à jour du produit',
             ], 500);
         }
     }
@@ -177,14 +181,14 @@ class ProductController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => $result['message']
+                'message' => $result['message'],
             ], 200);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (AuthorizationException $e) {
             return response()->json([
@@ -193,9 +197,10 @@ class ProductController extends Controller
             ], 403);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la suppression du produit'
+                'message' => 'Erreur lors de la suppression du produit',
             ], 500);
         }
     }
@@ -219,14 +224,14 @@ class ProductController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Statut du produit modifié',
-                'data' => new ProductResource($product)
+                'data' => new ProductResource($product),
             ], 200);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (AuthorizationException $e) {
             return response()->json([
@@ -235,9 +240,10 @@ class ProductController extends Controller
             ], 403);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la modification du statut'
+                'message' => 'Erreur lors de la modification du statut',
             ], 500);
         }
     }
@@ -257,20 +263,21 @@ class ProductController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => new ProductCollection($paginated)
+                'data' => new ProductCollection($paginated),
             ], 200);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 403);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la récupération des produits'
+                'message' => 'Erreur lors de la récupération des produits',
             ], 500);
         }
     }
@@ -297,14 +304,14 @@ class ProductController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Stock mis à jour',
-                'data' => new ProductResource($product)
+                'data' => new ProductResource($product),
             ], 200);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur de validation',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (AuthorizationException $e) {
             return response()->json([
@@ -313,9 +320,10 @@ class ProductController extends Controller
             ], 403);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la mise à jour du stock'
+                'message' => 'Erreur lors de la mise à jour du stock',
             ], 500);
         }
     }
@@ -332,14 +340,15 @@ class ProductController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => new ProductCollection($products)
+                'data' => new ProductCollection($products),
             ], 200);
 
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la recherche'
+                'message' => 'Erreur lors de la recherche',
             ], 500);
         }
     }
@@ -356,14 +365,15 @@ class ProductController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => ProductResource::collection($products)
+                'data' => ProductResource::collection($products),
             ], 200);
 
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la récupération des nouveautés'
+                'message' => 'Erreur lors de la récupération des nouveautés',
             ], 500);
         }
     }
@@ -394,6 +404,7 @@ class ProductController extends Controller
             ], 422);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la mise à jour des images',

@@ -2,10 +2,10 @@
 
 /**
  * 🚀 Mail Provider: BREVO
- * 
+ *
  * Cette notification utilise Brevo SMTP pour l'envoi d'emails
  * Configuration: smtp-relay.brevo.com:587 (TLS)
- * 
+ *
  * @see https://app.brevo.com for dashboard and settings
  */
 
@@ -47,19 +47,19 @@ class OrderConfirmation extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->greeting('Bonjour ' . $notifiable->name . '!')
-            ->subject('Votre commande #' . $this->order->order_number . ' a été confirmée')
+            ->greeting('Bonjour '.$notifiable->name.'!')
+            ->subject('Votre commande #'.$this->order->order_number.' a été confirmée')
             ->line('Merci pour votre achat!')
             ->line('Voici les détails de votre commande:')
-            ->line('📌 **Numéro de commande**: ' . $this->order->order_number)
-            ->line('💰 **Montant total**: ' . number_format($this->order->total, 2, ',', ' ') . ' XOF')
-            ->line('📍 **Adresse de livraison**: ' . $this->order->shipping_address)
-            ->line('📦 **Nombre d\'articles**: ' . $this->order->items->count())
+            ->line('📌 **Numéro de commande**: '.$this->order->order_number)
+            ->line('💰 **Montant total**: '.number_format($this->order->total, 2, ',', ' ').' XOF')
+            ->line('📍 **Adresse de livraison**: '.$this->order->shipping_address)
+            ->line('📦 **Nombre d\'articles**: '.$this->order->items->count())
             ->line('')
             ->line('**Détail des articles:**')
             ->line($this->getItemsDetails())
             ->line('⏱️ **Vous recevrez bientôt un email avec le numéro de suivi.**')
-            ->action('Voir mes commandes', url(env('FRONTEND_URL') . '/orders/' . $this->order->id))
+            ->action('Voir mes commandes', url(env('FRONTEND_URL').'/orders/'.$this->order->id))
             ->line('Cordialement,')
             ->line('L\'équipe AfriShop');
     }
@@ -83,9 +83,10 @@ class OrderConfirmation extends Notification implements ShouldQueue
     {
         $details = '';
         foreach ($this->order->items as $item) {
-            $details .= "• {$item->product->name} x{$item->quantity} - " . 
-                        number_format($item->price * $item->quantity, 2, ',', ' ') . ' XOF' . "\n";
+            $details .= "• {$item->product->name} x{$item->quantity} - ".
+                        number_format($item->price * $item->quantity, 2, ',', ' ').' XOF'."\n";
         }
+
         return $details;
     }
 }

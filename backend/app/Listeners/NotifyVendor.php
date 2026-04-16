@@ -33,7 +33,7 @@ class NotifyVendor implements ShouldQueue
         // Envoyer une notification à chaque vendeur
         foreach ($vendorIds as $vendeurId) {
             $vendeur = Vendeur::with('user')->find($vendeurId);
-            
+
             if ($vendeur && $vendeur->isVerified()) {
                 $vendeur->user->notify(new VendorNewOrder($event->order));
             }

@@ -51,7 +51,7 @@ class ChecklistCoverageTest extends TestCase
             ->get()
             ->contains(fn (Client $client) => $client->hasGrantType('personal_access'));
 
-        if (!$exists) {
+        if (! $exists) {
             app(ClientRepository::class)->createPersonalAccessGrantClient(
                 'Test Personal Access Client',
                 $provider
@@ -273,9 +273,9 @@ class ChecklistCoverageTest extends TestCase
         Passport::actingAs($client);
 
         $this->postJson('/api/payments/initiate', ['order_id' => $order->id])->assertOk();
-        $this->getJson('/api/payments/status/' . $order->id)->assertOk();
+        $this->getJson('/api/payments/status/'.$order->id)->assertOk();
 
-        $this->putJson('/api/orders/' . $order->id . '/shipping', [
+        $this->putJson('/api/orders/'.$order->id.'/shipping', [
             'shipping_method' => 'express',
             'shipping_address' => 'Thiès, Sénégal',
             'destination_country' => 'SN',
@@ -300,7 +300,7 @@ class ChecklistCoverageTest extends TestCase
         Passport::actingAs($admin, [], 'api');
         $this->assertTrue($admin->isAdmin());
         $this->getJson('/api/admin/users')->assertOk();
-        $this->putJson('/api/admin/users/' . $client->id . '/status')->assertOk();
+        $this->putJson('/api/admin/users/'.$client->id.'/status')->assertOk();
         $this->getJson('/api/admin/orders')->assertOk();
         $this->getJson('/api/admin/stats')->assertOk();
 

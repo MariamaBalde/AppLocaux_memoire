@@ -20,11 +20,11 @@ class SanitizeApiErrorDetails
             return $response;
         }
 
-        if (!$request->is('api/*')) {
+        if (! $request->is('api/*')) {
             return $response;
         }
 
-        if (!$response instanceof JsonResponse) {
+        if (! $response instanceof JsonResponse) {
             return $response;
         }
 

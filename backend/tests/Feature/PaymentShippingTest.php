@@ -74,7 +74,7 @@ class PaymentShippingTest extends TestCase
     public function test_payment_callback_with_valid_signature_updates_payment_and_order(): void
     {
         $secret = 'test-callback-secret';
-        putenv('PAYMENT_CALLBACK_SECRET=' . $secret);
+        putenv('PAYMENT_CALLBACK_SECRET='.$secret);
         $_ENV['PAYMENT_CALLBACK_SECRET'] = $secret;
         putenv('PAYMENT_CALLBACK_TOLERANCE_SECONDS=600');
         $_ENV['PAYMENT_CALLBACK_TOLERANCE_SECONDS'] = '600';
@@ -97,7 +97,7 @@ class PaymentShippingTest extends TestCase
 
         $timestamp = (string) now()->timestamp;
         $status = 'succeeded';
-        $signature = hash_hmac('sha256', $timestamp . '.' . $transactionId . '.' . $status, $secret);
+        $signature = hash_hmac('sha256', $timestamp.'.'.$transactionId.'.'.$status, $secret);
 
         $response = $this->postJson(
             '/api/payments/callback',

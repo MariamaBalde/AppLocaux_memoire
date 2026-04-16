@@ -13,9 +13,7 @@ use Illuminate\Validation\ValidationException;
 
 class PaymentController extends Controller
 {
-    public function __construct(private PaymentService $paymentService)
-    {
-    }
+    public function __construct(private PaymentService $paymentService) {}
 
     /**
      * POST /api/payments/initiate
@@ -37,7 +35,8 @@ class PaymentController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
-           report($e);
+            report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de l\'initialisation du paiement',
@@ -69,7 +68,8 @@ class PaymentController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
-           report($e);
+            report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors du traitement du callback',
@@ -96,7 +96,8 @@ class PaymentController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
-           report($e);
+            report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la récupération du statut de paiement',

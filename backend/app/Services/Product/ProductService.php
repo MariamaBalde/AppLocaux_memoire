@@ -13,7 +13,7 @@ class ProductService
 {
     private function extractPublicStoragePath(?string $imageUrl): ?string
     {
-        if (!$imageUrl || !is_string($imageUrl)) {
+        if (! $imageUrl || ! is_string($imageUrl)) {
             return null;
         }
 
@@ -35,7 +35,7 @@ class ProductService
         $imageUrls = [];
         foreach ($images as $image) {
             $path = $image->store('products', 'public');
-            $imageUrls[] = '/storage/' . ltrim($path, '/');
+            $imageUrls[] = '/storage/'.ltrim($path, '/');
         }
 
         return $imageUrls;
@@ -66,19 +66,19 @@ class ProductService
 
     private function ensureVerifiedVendor(User $user): void
     {
-        if (!$user->isVendeur()) {
+        if (! $user->isVendeur()) {
             throw ValidationException::withMessages([
                 'role' => ['Seuls les vendeurs peuvent accéder à cette ressource.'],
             ]);
         }
 
-        if (!$user->vendeur || !$user->vendeur->verified) {
+        if (! $user->vendeur || ! $user->vendeur->verified) {
             throw ValidationException::withMessages([
                 'verified' => ['Votre compte vendeur doit être vérifié par un administrateur.'],
             ]);
         }
     }
-    
+
     public function getAllProducts(array $filters = [])
     {
         $query = Product::with(['vendeur.user', 'category'])
@@ -111,10 +111,10 @@ class ProductService
 
         // Recherche avancée (nom + description)
         if (isset($filters['search'])) {
-            $searchTerm = '%' . $filters['search'] . '%';
+            $searchTerm = '%'.$filters['search'].'%';
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('name', 'like', $searchTerm)
-                  ->orWhere('description', 'like', $searchTerm);
+                    ->orWhere('description', 'like', $searchTerm);
             });
         }
 
@@ -138,11 +138,11 @@ class ProductService
 
         // Valider les colonnes de tri
         $validSortColumns = ['created_at', 'price', 'name', 'stock', 'updated_at'];
-        if (!in_array($sortBy, $validSortColumns)) {
+        if (! in_array($sortBy, $validSortColumns)) {
             $sortBy = 'created_at';
         }
 
-        if (!in_array($sortOrder, ['asc', 'desc'])) {
+        if (! in_array($sortOrder, ['asc', 'desc'])) {
             $sortOrder = 'desc';
         }
 
@@ -154,13 +154,12 @@ class ProductService
         return $query->paginate($perPage);
     }
 
-  
     public function getProductById(int $id)
     {
         $product = Product::with(['vendeur.user', 'category', 'creator'])
             ->find($id);
 
-        if (!$product) {
+        if (! $product) {
             throw ValidationException::withMessages([
                 'product' => ['Produit non trouvé.'],
             ]);
@@ -169,7 +168,6 @@ class ProductService
         return $product;
     }
 
-   
     public function createProduct(array $data, User $user)
     {
         $this->ensureVerifiedVendor($user);
@@ -197,20 +195,20 @@ class ProductService
     {
         $product = Product::find($id);
 
-        if (!$product) {
+        if (! $product) {
             throw ValidationException::withMessages([
                 'product' => ['Produit non trouvé.'],
             ]);
         }
 
         // Vérifier les permissions
-        if (!$user->isAdmin() && $product->vendeur_id !== $user->vendeur?->id) {
+        if (! $user->isAdmin() && $product->vendeur_id !== $user->vendeur?->id) {
             throw ValidationException::withMessages([
                 'permission' => ['Vous n\'êtes pas autorisé à modifier ce produit.'],
             ]);
         }
 
-        if (!$user->isAdmin()) {
+        if (! $user->isAdmin()) {
             $this->ensureVerifiedVendor($user);
         }
 
@@ -245,19 +243,19 @@ class ProductService
     {
         $product = Product::find($id);
 
-        if (!$product) {
+        if (! $product) {
             throw ValidationException::withMessages([
                 'product' => ['Produit non trouvé.'],
             ]);
         }
 
-        if (!$user->isAdmin() && $product->vendeur_id !== $user->vendeur?->id) {
+        if (! $user->isAdmin() && $product->vendeur_id !== $user->vendeur?->id) {
             throw ValidationException::withMessages([
                 'permission' => ['Vous n\'êtes pas autorisé à modifier ce produit.'],
             ]);
         }
 
-        if (!$user->isAdmin()) {
+        if (! $user->isAdmin()) {
             $this->ensureVerifiedVendor($user);
         }
 
@@ -281,20 +279,20 @@ class ProductService
 
     public function createProductForVendor(array $data, User $admin)
     {
-        if (!$admin->isAdmin()) {
+        if (! $admin->isAdmin()) {
             throw ValidationException::withMessages([
                 'permission' => ['Seuls les administrateurs peuvent créer un produit pour un vendeur.'],
             ]);
         }
 
         $vendeur = Vendeur::with('user')->find($data['vendeur_id']);
-        if (!$vendeur || !$vendeur->user || !$vendeur->user->isVendeur()) {
+        if (! $vendeur || ! $vendeur->user || ! $vendeur->user->isVendeur()) {
             throw ValidationException::withMessages([
                 'vendeur_id' => ['Le vendeur sélectionné est invalide.'],
             ]);
         }
 
-        if (!$vendeur->verified && ($data['is_active'] ?? true) === true) {
+        if (! $vendeur->verified && ($data['is_active'] ?? true) === true) {
             throw ValidationException::withMessages([
                 'is_active' => ['Un vendeur non vérifié ne peut pas publier un produit actif.'],
             ]);
@@ -322,25 +320,24 @@ class ProductService
         return $product->load(['vendeur.user', 'category']);
     }
 
-   
     public function deleteProduct(int $id, User $user)
     {
         $product = Product::find($id);
 
-        if (!$product) {
+        if (! $product) {
             throw ValidationException::withMessages([
                 'product' => ['Produit non trouvé.'],
             ]);
         }
 
         // Vérifier les permissions
-        if (!$user->isAdmin() && $product->vendeur_id !== $user->vendeur?->id) {
+        if (! $user->isAdmin() && $product->vendeur_id !== $user->vendeur?->id) {
             throw ValidationException::withMessages([
                 'permission' => ['Vous n\'êtes pas autorisé à supprimer ce produit.'],
             ]);
         }
 
-        if (!$user->isAdmin()) {
+        if (! $user->isAdmin()) {
             $this->ensureVerifiedVendor($user);
         }
 
@@ -386,38 +383,36 @@ class ProductService
         ];
     }
 
-   
     public function toggleProductStatus(int $id, User $user)
     {
         $product = Product::find($id);
 
-        if (!$product) {
+        if (! $product) {
             throw ValidationException::withMessages([
                 'product' => ['Produit non trouvé.'],
             ]);
         }
 
         // Vérifier les permissions
-        if (!$user->isAdmin() && $product->vendeur_id !== $user->vendeur?->id) {
+        if (! $user->isAdmin() && $product->vendeur_id !== $user->vendeur?->id) {
             throw ValidationException::withMessages([
                 'permission' => ['Vous n\'êtes pas autorisé à modifier ce produit.'],
             ]);
         }
 
-        if (!$user->isAdmin()) {
+        if (! $user->isAdmin()) {
             $this->ensureVerifiedVendor($user);
         }
 
         // Inverser le statut
         $product->update([
-            'is_active' => !$product->is_active,
+            'is_active' => ! $product->is_active,
             'updated_by' => $user->id,
         ]);
 
         return $product->load(['vendeur.user', 'category']);
     }
 
-   
     public function getVendorProducts(User $user, array $filters = [])
     {
         $this->ensureVerifiedVendor($user);
@@ -439,17 +434,17 @@ class ProductService
 
         // Recherche
         if (isset($filters['search'])) {
-            $query->where('name', 'like', '%' . $filters['search'] . '%');
+            $query->where('name', 'like', '%'.$filters['search'].'%');
         }
 
         // Tri
         $sortBy = $filters['sort_by'] ?? 'created_at';
         $sortOrder = $filters['sort_order'] ?? 'desc';
         $validSortColumns = ['created_at', 'updated_at', 'name', 'price', 'stock', 'is_active'];
-        if (!in_array($sortBy, $validSortColumns, true)) {
+        if (! in_array($sortBy, $validSortColumns, true)) {
             $sortBy = 'created_at';
         }
-        if (!in_array($sortOrder, ['asc', 'desc'], true)) {
+        if (! in_array($sortOrder, ['asc', 'desc'], true)) {
             $sortOrder = 'desc';
         }
         $query->orderBy($sortBy, $sortOrder);
@@ -460,25 +455,24 @@ class ProductService
         return $query->paginate($perPage);
     }
 
-   
     public function updateStock(int $id, int $quantity, User $user)
     {
         $product = Product::find($id);
 
-        if (!$product) {
+        if (! $product) {
             throw ValidationException::withMessages([
                 'product' => ['Produit non trouvé.'],
             ]);
         }
 
         // Vérifier les permissions
-        if (!$user->isAdmin() && $product->vendeur_id !== $user->vendeur?->id) {
+        if (! $user->isAdmin() && $product->vendeur_id !== $user->vendeur?->id) {
             throw ValidationException::withMessages([
                 'permission' => ['Vous n\'êtes pas autorisé à modifier ce produit.'],
             ]);
         }
 
-        if (!$user->isAdmin()) {
+        if (! $user->isAdmin()) {
             $this->ensureVerifiedVendor($user);
         }
 
@@ -511,22 +505,22 @@ class ProductService
         // ══════════════════════════════════════════
         // RECHERCHE PAR MOT-CLÉ (nom, description)
         // ══════════════════════════════════════════
-        if (isset($filters['q']) && !empty($filters['q'])) {
+        if (isset($filters['q']) && ! empty($filters['q'])) {
             $searchTerm = $filters['q'];
             $query->where(function ($q) use ($searchTerm) {
-                $q->where('name', 'like', '%' . $searchTerm . '%')
-                  ->orWhere('description', 'like', '%' . $searchTerm . '%');
+                $q->where('name', 'like', '%'.$searchTerm.'%')
+                    ->orWhere('description', 'like', '%'.$searchTerm.'%');
             });
         }
 
         // ══════════════════════════════════════════
         // FILTRES
         // ══════════════════════════════════════════
-        
+
         // Catégorie(s) - supporte plusieurs catégories
         if (isset($filters['categories'])) {
-            $categories = is_array($filters['categories']) 
-                ? $filters['categories'] 
+            $categories = is_array($filters['categories'])
+                ? $filters['categories']
                 : explode(',', $filters['categories']);
             $query->whereIn('category_id', $categories);
         }
@@ -564,7 +558,7 @@ class ProductService
         // ══════════════════════════════════════════
         // TRI
         // ══════════════════════════════════════════
-        
+
         $sortBy = $filters['sort_by'] ?? 'created_at';
         $sortOrder = $filters['sort_order'] ?? 'desc';
 
@@ -595,9 +589,9 @@ class ProductService
         // ══════════════════════════════════════════
         // PAGINATION
         // ══════════════════════════════════════════
-        
+
         $perPage = $filters['per_page'] ?? 12;
-        
+
         return $query->paginate($perPage);
     }
 

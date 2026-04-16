@@ -11,8 +11,8 @@ class OrangeMoneyGateway implements PaymentGatewayInterface
     public function initiate(Payment $payment, Order $order, array $context = []): array
     {
         $frontendUrl = rtrim((string) ($context['frontend_url'] ?? env('FRONTEND_URL', 'http://localhost:3000')), '/');
-        $reference = 'OM-' . now()->format('YmdHis') . '-' . strtoupper(Str::random(6));
-        $paymentUrl = $frontendUrl . '/orders/' . $order->id . '/confirmation?payment_ref=' . $reference . '&gateway=orange_money';
+        $reference = 'OM-'.now()->format('YmdHis').'-'.strtoupper(Str::random(6));
+        $paymentUrl = $frontendUrl.'/orders/'.$order->id.'/confirmation?payment_ref='.$reference.'&gateway=orange_money';
 
         return [
             'provider' => 'orange_money',

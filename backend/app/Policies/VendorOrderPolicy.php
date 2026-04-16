@@ -16,7 +16,7 @@ class VendorOrderPolicy
     {
         $vendor = $user->vendeur()->first();
 
-        if (!$user->isVendeur() || !$vendor) {
+        if (! $user->isVendeur() || ! $vendor) {
             return false;
         }
 

@@ -50,7 +50,7 @@ class ShippingService
             $weightCost = $weightKg * 700;
         }
 
-        if (!in_array($normalizedMethod, ['international', 'diaspora'], true) && $subtotal >= 50000.0) {
+        if (! in_array($normalizedMethod, ['international', 'diaspora'], true) && $subtotal >= 50000.0) {
             return 0.0;
         }
 

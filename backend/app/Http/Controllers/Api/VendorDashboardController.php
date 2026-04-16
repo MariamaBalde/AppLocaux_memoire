@@ -12,9 +12,7 @@ use Illuminate\Validation\ValidationException;
 
 class VendorDashboardController extends Controller
 {
-    public function __construct(private VendorDashboardService $vendorDashboardService)
-    {
-    }
+    public function __construct(private VendorDashboardService $vendorDashboardService) {}
 
     /**
      * GET /api/vendor/dashboard/overview
@@ -36,6 +34,7 @@ class VendorDashboardController extends Controller
             ], 422);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors du chargement du dashboard vendeur',
@@ -66,6 +65,7 @@ class VendorDashboardController extends Controller
             ], 422);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la récupération des statistiques',
@@ -93,6 +93,7 @@ class VendorDashboardController extends Controller
             ], 422);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la récupération des revenus hebdomadaires',
@@ -120,6 +121,7 @@ class VendorDashboardController extends Controller
             ], 422);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la récupération des destinations',
@@ -148,6 +150,7 @@ class VendorDashboardController extends Controller
             ], 422);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la récupération des commandes récentes',
@@ -175,6 +178,7 @@ class VendorDashboardController extends Controller
             ], 422);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la récupération des top produits',

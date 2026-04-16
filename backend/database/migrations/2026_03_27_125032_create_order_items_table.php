@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('order_items', function (Blueprint $table) {
             $table->id();
-             $table->foreignId('order_id')->constrained()->onDelete('cascade');
+            $table->foreignId('order_id')->constrained()->onDelete('cascade');
             $table->foreignId('product_id')->constrained()->onDelete('cascade');
             $table->foreignId('vendeur_id')->constrained('vendeurs')->onDelete('cascade');
             $table->integer('quantity');
@@ -21,7 +21,7 @@ return new class extends Migration
             $table->decimal('subtotal', 10, 2);
             $table->timestamps();
 
-                        // Index
+            // Index
             $table->index('order_id');
             $table->index('product_id');
             $table->index('vendeur_id');

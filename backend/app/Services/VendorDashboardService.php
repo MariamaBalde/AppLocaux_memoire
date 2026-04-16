@@ -13,6 +13,7 @@ use Illuminate\Validation\ValidationException;
 class VendorDashboardService
 {
     private const VALID_STATUSES = ['all', 'pending', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'];
+
     private const VALID_PERIODS = ['all', '7d', '30d', 'month'];
 
     public function getOverview(User $user, array $filters = []): array
@@ -115,7 +116,7 @@ class VendorDashboardService
 
         return collect($buckets)
             ->map(fn ($value, $index) => [
-                'label' => 'S' . ($index + 1),
+                'label' => 'S'.($index + 1),
                 'value' => round((float) $value, 2),
             ])
             ->values()
@@ -281,11 +282,13 @@ class VendorDashboardService
 
         if ($period === '7d') {
             $query->where($column, '>=', now()->subDays(7)->startOfDay());
+
             return;
         }
 
         if ($period === '30d') {
             $query->where($column, '>=', now()->subDays(30)->startOfDay());
+
             return;
         }
 
@@ -305,7 +308,7 @@ class VendorDashboardService
 
     private function resolveVendeurId(User $user): int
     {
-        if (!$user->isVendeur() || !$user->vendeur) {
+        if (! $user->isVendeur() || ! $user->vendeur) {
             throw ValidationException::withMessages([
                 'role' => ['Seuls les vendeurs peuvent accéder à ce dashboard.'],
             ]);
@@ -329,7 +332,7 @@ class VendorDashboardService
 
     private function countryFromAddress(?string $address): string
     {
-        if (!$address) {
+        if (! $address) {
             return 'Autres';
         }
 

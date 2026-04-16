@@ -4,15 +4,15 @@ namespace App\Services\Auth;
 
 use App\Models\User;
 use App\Models\Vendeur;
-use App\Services\Auth\AuthServiceInterface;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 class AuthService implements AuthServiceInterface
 {
     private UserValidationService $validationService;
+
     private TokenService $tokenService;
 
     public function __construct(
@@ -58,7 +58,7 @@ class AuthService implements AuthServiceInterface
 
         $verificationSent = false;
         try {
-            if (!$user->hasVerifiedEmail()) {
+            if (! $user->hasVerifiedEmail()) {
                 $user->sendEmailVerificationNotification();
                 $verificationSent = true;
             }
@@ -80,13 +80,13 @@ class AuthService implements AuthServiceInterface
     {
         $user = User::where('email', $credentials['email'])->first();
 
-        if (!$user) {
+        if (! $user) {
             throw ValidationException::withMessages([
                 'email' => ['Cet email n\'existe pas dans notre système.'],
             ]);
         }
 
-        if (!Auth::attempt($credentials)) {
+        if (! Auth::attempt($credentials)) {
             throw ValidationException::withMessages([
                 'password' => ['Le mot de passe est incorrect.'],
             ]);

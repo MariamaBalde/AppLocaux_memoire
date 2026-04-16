@@ -47,7 +47,7 @@ class CartService
         // Vérifier que le produit existe et est actif
         $product = Product::find($productId);
 
-        if (!$product || !$product->is_active) {
+        if (! $product || ! $product->is_active) {
             throw ValidationException::withMessages([
                 'product' => ['Ce produit n\'est pas disponible.'],
             ]);
@@ -56,7 +56,7 @@ class CartService
         // Vérifier le stock disponible
         if ($product->stock < $quantity) {
             throw ValidationException::withMessages([
-                'quantity' => ['Stock insuffisant. Disponible : ' . $product->stock],
+                'quantity' => ['Stock insuffisant. Disponible : '.$product->stock],
             ]);
         }
 
@@ -72,7 +72,7 @@ class CartService
             // Vérifier le stock pour la nouvelle quantité
             if ($product->stock < $newQuantity) {
                 throw ValidationException::withMessages([
-                    'quantity' => ['Stock insuffisant. Disponible : ' . $product->stock],
+                    'quantity' => ['Stock insuffisant. Disponible : '.$product->stock],
                 ]);
             }
 
@@ -105,7 +105,7 @@ class CartService
             ->where('id', $cartItemId)
             ->first();
 
-        if (!$cartItem) {
+        if (! $cartItem) {
             throw ValidationException::withMessages([
                 'cart_item' => ['Article non trouvé dans le panier.'],
             ]);
@@ -122,7 +122,7 @@ class CartService
         $product = $cartItem->product;
         if ($product->stock < $quantity) {
             throw ValidationException::withMessages([
-                'quantity' => ['Stock insuffisant. Disponible : ' . $product->stock],
+                'quantity' => ['Stock insuffisant. Disponible : '.$product->stock],
             ]);
         }
 
@@ -146,7 +146,7 @@ class CartService
             ->where('id', $cartItemId)
             ->first();
 
-        if (!$cartItem) {
+        if (! $cartItem) {
             throw ValidationException::withMessages([
                 'cart_item' => ['Article non trouvé dans le panier.'],
             ]);
@@ -188,12 +188,13 @@ class CartService
             $product = $item->product;
 
             // Produit inactif ou supprimé
-            if (!$product || !$product->is_active) {
+            if (! $product || ! $product->is_active) {
                 $unavailableItems[] = [
                     'cart_item_id' => $item->id,
                     'product_name' => $product->name ?? 'Produit supprimé',
                     'reason' => 'Produit non disponible',
                 ];
+
                 continue;
             }
 

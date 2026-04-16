@@ -2,10 +2,10 @@
 
 /**
  * 🚀 Mail Provider: BREVO
- * 
+ *
  * Cette notification utilise Brevo SMTP pour l'envoi d'emails
  * Configuration: smtp-relay.brevo.com:587 (TLS)
- * 
+ *
  * @see https://app.brevo.com for dashboard and settings
  */
 
@@ -51,12 +51,12 @@ class VendorVerificationRequest extends Notification implements ShouldQueue
             ->subject('📋 Un nouveau vendeur demande à être vérifié')
             ->line('Un nouveau vendeur s\'est inscrit sur AfriShop.')
             ->line('**Informations du vendeur:**')
-            ->line('👤 **Nom**: ' . $this->vendeur->user->name)
-            ->line('📧 **Email**: ' . $this->vendeur->user->email)
-            ->line('📞 **Téléphone**: ' . $this->vendeur->user->phone)
-            ->line('🏪 **Nom du magasin**: ' . $this->vendeur->shop_name)
-            ->line('📝 **Description**: ' . $this->vendeur->description)
-            ->line('📍 **Pays**: ' . $this->vendeur->user->country)
+            ->line('👤 **Nom**: '.$this->vendeur->user->name)
+            ->line('📧 **Email**: '.$this->vendeur->user->email)
+            ->line('📞 **Téléphone**: '.$this->vendeur->user->phone)
+            ->line('🏪 **Nom du magasin**: '.$this->vendeur->shop_name)
+            ->line('📝 **Description**: '.$this->vendeur->description)
+            ->line('📍 **Pays**: '.$this->vendeur->user->country)
             ->line('')
             ->line('**Adresse enregistrée:**')
             ->line($this->vendeur->user->address)
@@ -65,7 +65,7 @@ class VendorVerificationRequest extends Notification implements ShouldQueue
             ->line('1. Vérifier les informations du vendeur')
             ->line('2. Vérifier la légalité de la boutique')
             ->line('3. Approuver ou rejeter la demande')
-            ->action('Accéder au panneau d\'administration', url(env('FRONTEND_URL') . '/admin/vendors/' . $this->vendeur->id))
+            ->action('Accéder au panneau d\'administration', url(env('FRONTEND_URL').'/admin/vendors/'.$this->vendeur->id))
             ->line('Merci de votre vigilance!')
             ->line('L\'équipe AfriShop');
     }

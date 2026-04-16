@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\AddToCartRequest;
 use App\Http\Requests\UpdateCartItemRequest;
 use App\Services\Cart\CartService;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class CartController extends Controller
 {
@@ -38,7 +38,8 @@ class CartController extends Controller
     /**
      * Récupère le panier de l'utilisateur
      * GET /api/cart
-     */    private function formatCartItem($item)
+     */
+    private function formatCartItem($item)
     {
         return [
             'id' => $item->id,
@@ -73,9 +74,10 @@ class CartController extends Controller
 
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la récupération du panier'
+                'message' => 'Erreur lors de la récupération du panier',
             ], 500);
         }
     }
@@ -92,7 +94,7 @@ class CartController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => $result['message'],
-                'data' => $this->formatCartItem($result['cart_item'])
+                'data' => $this->formatCartItem($result['cart_item']),
             ], 201);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -102,13 +104,14 @@ class CartController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $status === 409 ? 'Conflit de stock' : 'Erreur de validation',
-                'errors' => $errors
+                'errors' => $errors,
             ], $status);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de l\'ajout au panier'
+                'message' => 'Erreur lors de l\'ajout au panier',
             ], 500);
         }
     }
@@ -131,7 +134,7 @@ class CartController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => $result['message'],
-                'data' => $this->formatCartItem($result['cart_item'])
+                'data' => $this->formatCartItem($result['cart_item']),
             ], 200);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -141,13 +144,14 @@ class CartController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $status === 409 ? 'Conflit de stock' : 'Erreur de validation',
-                'errors' => $errors
+                'errors' => $errors,
             ], $status);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la mise à jour'
+                'message' => 'Erreur lors de la mise à jour',
             ], 500);
         }
     }
@@ -163,20 +167,21 @@ class CartController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => $result['message']
+                'message' => $result['message'],
             ], 200);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la suppression'
+                'message' => 'Erreur lors de la suppression',
             ], 500);
         }
     }
@@ -192,14 +197,15 @@ class CartController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => $result['message']
+                'message' => $result['message'],
             ], 200);
 
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors du vidage du panier'
+                'message' => 'Erreur lors du vidage du panier',
             ], 500);
         }
     }
@@ -215,15 +221,16 @@ class CartController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $result
+                'data' => $result,
             ], 200);
 
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la vérification'
+                'message' => 'Erreur lors de la vérification',
             ], 500);
         }
-    } 
+    }
 }

@@ -1,18 +1,18 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\CategoryController;
-use App\Http\Controllers\Api\ProductController;
-use App\Http\Controllers\Api\CartController;
-use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CartController;
+use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\PasswordController;
+use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\ShippingController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VendorDashboardController;
 use App\Http\Controllers\Api\VendorOrderController;
-use App\Http\Controllers\Api\PaymentController;
-use App\Http\Controllers\Api\PasswordController;
-use App\Http\Controllers\Api\ShippingController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -200,22 +200,22 @@ Route::middleware(['auth:api', 'admin'])->prefix('admin')->group(function () {
     Route::get('/dashboard/stats', [AdminController::class, 'dashboardStats']);
     Route::get('/stats', [AdminController::class, 'dashboardStats']);
     Route::get('/dashboard/advanced-stats', [AdminController::class, 'advancedStats']);
-    
+
     // Graphiques
     Route::get('/charts/sales-per-month', [AdminController::class, 'salesPerMonth']);
     Route::get('/charts/products-by-category', [AdminController::class, 'productsByCategory']);
-    
+
     // Top vendeurs et commandes récentes
     Route::get('/top-vendors', [AdminController::class, 'topVendors']);
     Route::get('/recent-orders', [AdminController::class, 'recentOrders']);
     Route::get('/orders', [AdminController::class, 'recentOrders']);
     Route::get('/recent-users', [AdminController::class, 'recentUsers']);
-    
+
     // Gestion des vendeurs
     Route::get('/pending-vendors', [AdminController::class, 'pendingVendors']);
     Route::post('/vendors/{id}/approve', [AdminController::class, 'approveVendor']);
     Route::post('/vendors/{id}/reject', [AdminController::class, 'rejectVendor']);
-    
+
     // Gestion des utilisateurs
     Route::get('/users', [AdminController::class, 'users']);
     Route::put('/users/{id}/status', [AdminController::class, 'toggleUserStatus']);

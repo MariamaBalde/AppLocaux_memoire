@@ -35,7 +35,6 @@ class UserSeeder extends Seeder
                 'country' => 'SN',
             ],
 
-
             [
                 'name' => 'Moussa Sall',
                 'email' => 'moussa@plateforme.sn',
@@ -52,9 +51,7 @@ class UserSeeder extends Seeder
                 'country' => 'ML',
             ],
 
-
         ];
-
 
         foreach ($vendeurs as $vendeurData) {
             User::create([
@@ -78,7 +75,7 @@ class UserSeeder extends Seeder
                 'address' => 'Paris, France',
                 'country' => 'France',
             ],
-             [
+            [
                 'name' => 'Marie Martin',
                 'email' => 'marie.martin@gmail.com',
                 'phone' => '+33 6 23 45 67 89',
@@ -94,7 +91,7 @@ class UserSeeder extends Seeder
             ],
         ];
 
-         foreach ($clients as $clientData) {
+        foreach ($clients as $clientData) {
             User::create([
                 'name' => $clientData['name'],
                 'email' => $clientData['email'],

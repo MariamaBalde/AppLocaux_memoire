@@ -32,7 +32,7 @@ class UserPaymentMethod extends Model
 
     public function getAccountMaskedAttribute(): ?string
     {
-        if (!$this->account_number) {
+        if (! $this->account_number) {
             return null;
         }
 
@@ -41,7 +41,7 @@ class UserPaymentMethod extends Model
             return $this->account_number;
         }
 
-        return str_repeat('*', $length - 4) . substr($this->account_number, -4);
+        return str_repeat('*', $length - 4).substr($this->account_number, -4);
     }
 
     public function user()

@@ -16,9 +16,7 @@ use Illuminate\Validation\ValidationException;
 
 class VendorOrderController extends Controller
 {
-    public function __construct(private OrderService $orderService)
-    {
-    }
+    public function __construct(private OrderService $orderService) {}
 
     /**
      * GET /api/seller/orders
@@ -46,6 +44,7 @@ class VendorOrderController extends Controller
             ], 403);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la récupération des commandes vendeur',
@@ -88,6 +87,7 @@ class VendorOrderController extends Controller
             ], 403);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la récupération de la commande vendeur',
@@ -144,6 +144,7 @@ class VendorOrderController extends Controller
             ], 403);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la mise à jour du statut de commande vendeur',
@@ -193,6 +194,7 @@ class VendorOrderController extends Controller
             ], 403);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la mise à jour du suivi vendeur',

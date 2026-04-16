@@ -22,4 +22,3 @@ class CategoryPolicy
         return $user->isAdmin();
     }
 }
-
