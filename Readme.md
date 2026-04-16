@@ -78,7 +78,22 @@ flutter run
 
 ##  Documentation
 
-Voir le dossier `docs/` pour plus d'informations.
+- Guide Trello Scrum: `docs/TRELLO_SCRUM.md`
+- Capture du tableau Trello: `docs/images/trello-tableau-scrum.png`
+
+### Trello (suivi Scrum)
+
+Le tableau Trello du projet doit contenir les listes suivantes:
+
+- Product Backlog
+- Sprint Backlog
+- To Do
+- In Progress
+- Review
+- Done
+- Blockers
+
+Voir le detail complet dans `docs/TRELLO_SCRUM.md`.
 
 ##  Équipe
 
