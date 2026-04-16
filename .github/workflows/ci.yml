@@ -37,6 +37,7 @@ jobs:
         run: |
           cp .env.example .env
           php artisan key:generate --force
+          php artisan passport:keys --force
           php artisan config:clear
 
       - name: Run backend tests
