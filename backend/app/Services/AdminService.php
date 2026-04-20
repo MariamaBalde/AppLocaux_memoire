@@ -2,11 +2,11 @@
 
 namespace App\Services;
 
-use App\Models\User;
+use App\Models\Category;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\User;
 use App\Models\Vendeur;
-use App\Models\Category;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
@@ -26,26 +26,26 @@ class AdminService
             'total_clients' => User::where('role', 'client')->count(),
             'total_vendeurs' => User::where('role', 'vendeur')->count(),
             'total_admins' => User::where('role', 'admin')->count(),
-            
+
             'total_products' => Product::count(),
             'active_products' => Product::where('is_active', true)->count(),
             'out_of_stock' => Product::where('stock', 0)->count(),
-            
+
             'total_categories' => Category::count(),
-            
+
             'total_orders' => Order::count(),
             'pending_orders' => Order::where('status', 'pending')->count(),
             'processing_orders' => Order::where('status', 'processing')->count(),
             'completed_orders' => Order::where('status', 'delivered')->count(),
             'cancelled_orders' => Order::where('status', 'cancelled')->count(),
-            
+
             'total_revenue' => Order::whereIn('status', ['processing', 'shipped', 'delivered'])
                 ->sum('total'),
             'revenue_this_month' => Order::whereIn('status', ['processing', 'shipped', 'delivered'])
                 ->whereMonth('created_at', now()->month)
                 ->whereYear('created_at', now()->year)
                 ->sum('total'),
-            
+
             'pending_vendeurs' => Vendeur::where('verified', false)->count(),
         ];
 
@@ -57,7 +57,7 @@ class AdminService
      * VENTES PAR MOIS (pour graphique)
      * ═══════════════════════════════════════════════════════
      */
-    public function getSalesPerMonth(int $year = null)
+    public function getSalesPerMonth(?int $year = null)
     {
         $year = $year ?? now()->year;
 
@@ -175,7 +175,7 @@ class AdminService
      */
     public function approveVendor(int $vendeurId, User $admin)
     {
-        if (!$admin->isAdmin()) {
+        if (! $admin->isAdmin()) {
             throw ValidationException::withMessages([
                 'permission' => ['Seuls les administrateurs peuvent approuver des vendeurs.'],
             ]);
@@ -183,7 +183,7 @@ class AdminService
 
         $vendeur = Vendeur::with('user')->find($vendeurId);
 
-        if (!$vendeur) {
+        if (! $vendeur) {
             throw ValidationException::withMessages([
                 'vendeur' => ['Vendeur non trouvé.'],
             ]);
@@ -211,9 +211,9 @@ class AdminService
      * REJETER UN VENDEUR
      * ═══════════════════════════════════════════════════════
      */
-    public function rejectVendor(int $vendeurId, User $admin, string $reason = null)
+    public function rejectVendor(int $vendeurId, User $admin, ?string $reason = null)
     {
-        if (!$admin->isAdmin()) {
+        if (! $admin->isAdmin()) {
             throw ValidationException::withMessages([
                 'permission' => ['Seuls les administrateurs peuvent rejeter des vendeurs.'],
             ]);
@@ -221,7 +221,7 @@ class AdminService
 
         $vendeur = Vendeur::with('user')->find($vendeurId);
 
-        if (!$vendeur) {
+        if (! $vendeur) {
             throw ValidationException::withMessages([
                 'vendeur' => ['Vendeur non trouvé.'],
             ]);
@@ -245,7 +245,7 @@ class AdminService
      */
     public function toggleUserStatus(int $userId, User $admin)
     {
-        if (!$admin->isAdmin()) {
+        if (! $admin->isAdmin()) {
             throw ValidationException::withMessages([
                 'permission' => ['Seuls les administrateurs peuvent modifier le statut des utilisateurs.'],
             ]);
@@ -253,7 +253,7 @@ class AdminService
 
         $user = User::find($userId);
 
-        if (!$user) {
+        if (! $user) {
             throw ValidationException::withMessages([
                 'user' => ['Utilisateur non trouvé.'],
             ]);
@@ -287,17 +287,17 @@ class AdminService
         return [
             // Taux de conversion
             'conversion_rate' => $this->calculateConversionRate(),
-            
+
             // Panier moyen
             'average_order_value' => Order::whereIn('status', ['processing', 'shipped', 'delivered'])
                 ->avg('total'),
-            
+
             // Produit le plus vendu
             'top_product' => $this->getTopProduct(),
-            
+
             // Catégorie la plus vendue
             'top_category' => $this->getTopCategory(),
-            
+
             // Évolution du CA (comparaison mois actuel vs mois précédent)
             'revenue_growth' => $this->calculateRevenueGrowth(),
         ];
@@ -358,6 +358,7 @@ class AdminService
 
         if ($lastMonth > 0) {
             $growth = (($currentMonth - $lastMonth) / $lastMonth) * 100;
+
             return round($growth, 2);
         }
 
@@ -386,8 +387,8 @@ class AdminService
         // Recherche
         if (isset($filters['search'])) {
             $query->where(function ($q) use ($filters) {
-                $q->where('name', 'like', '%' . $filters['search'] . '%')
-                  ->orWhere('email', 'like', '%' . $filters['search'] . '%');
+                $q->where('name', 'like', '%'.$filters['search'].'%')
+                    ->orWhere('email', 'like', '%'.$filters['search'].'%');
             });
         }
 
@@ -418,26 +419,26 @@ class AdminService
             }
         }
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $term = trim((string) $filters['search']);
             $query->where(function ($q) use ($term) {
-                $q->where('name', 'like', '%' . $term . '%')
-                    ->orWhere('description', 'like', '%' . $term . '%')
+                $q->where('name', 'like', '%'.$term.'%')
+                    ->orWhere('description', 'like', '%'.$term.'%')
                     ->orWhereHas('vendeur', function ($vq) use ($term) {
-                        $vq->where('shop_name', 'like', '%' . $term . '%');
+                        $vq->where('shop_name', 'like', '%'.$term.'%');
                     });
             });
         }
 
-        if (!empty($filters['category_id'])) {
+        if (! empty($filters['category_id'])) {
             $query->where('category_id', (int) $filters['category_id']);
         }
 
-        if (!empty($filters['vendeur_id'])) {
+        if (! empty($filters['vendeur_id'])) {
             $query->where('vendeur_id', (int) $filters['vendeur_id']);
         }
 
-        if (!empty($filters['stock_status'])) {
+        if (! empty($filters['stock_status'])) {
             if ($filters['stock_status'] === 'in_stock') {
                 $query->where('stock', '>', 5);
             } elseif ($filters['stock_status'] === 'low_stock') {
@@ -450,7 +451,7 @@ class AdminService
         $sortBy = $filters['sort_by'] ?? 'created_at';
         $sortOrder = strtolower((string) ($filters['sort_order'] ?? 'desc')) === 'asc' ? 'asc' : 'desc';
         $allowedSorts = ['created_at', 'updated_at', 'price', 'stock', 'name'];
-        if (!in_array($sortBy, $allowedSorts, true)) {
+        if (! in_array($sortBy, $allowedSorts, true)) {
             $sortBy = 'created_at';
         }
         $query->orderBy($sortBy, $sortOrder);
@@ -464,20 +465,20 @@ class AdminService
 
     public function updateProductStatus(int $productId, string $status, User $admin): array
     {
-        if (!$admin->isAdmin()) {
+        if (! $admin->isAdmin()) {
             throw ValidationException::withMessages([
                 'permission' => ['Seuls les administrateurs peuvent modifier le statut des produits.'],
             ]);
         }
 
-        if (!in_array($status, ['active', 'inactive'], true)) {
+        if (! in_array($status, ['active', 'inactive'], true)) {
             throw ValidationException::withMessages([
                 'status' => ['Le statut doit être active ou inactive.'],
             ]);
         }
 
         $product = Product::find($productId);
-        if (!$product) {
+        if (! $product) {
             throw ValidationException::withMessages([
                 'product' => ['Produit non trouvé.'],
             ]);
@@ -496,27 +497,27 @@ class AdminService
 
     public function toggleFeaturedProduct(int $productId, User $admin): array
     {
-        if (!$admin->isAdmin()) {
+        if (! $admin->isAdmin()) {
             throw ValidationException::withMessages([
                 'permission' => ['Seuls les administrateurs peuvent mettre un produit en avant.'],
             ]);
         }
 
-        if (!Schema::hasColumn('products', 'featured')) {
+        if (! Schema::hasColumn('products', 'featured')) {
             throw ValidationException::withMessages([
                 'featured' => ['La colonne featured est absente. Lancez la migration dédiée.'],
             ]);
         }
 
         $product = Product::find($productId);
-        if (!$product) {
+        if (! $product) {
             throw ValidationException::withMessages([
                 'product' => ['Produit non trouvé.'],
             ]);
         }
 
         $product->update([
-            'featured' => !((bool) $product->featured),
+            'featured' => ! ((bool) $product->featured),
             'updated_by' => $admin->id,
         ]);
 
@@ -528,14 +529,14 @@ class AdminService
 
     public function deleteProduct(int $productId, User $admin): array
     {
-        if (!$admin->isAdmin()) {
+        if (! $admin->isAdmin()) {
             throw ValidationException::withMessages([
                 'permission' => ['Seuls les administrateurs peuvent supprimer des produits.'],
             ]);
         }
 
         $product = Product::find($productId);
-        if (!$product) {
+        if (! $product) {
             throw ValidationException::withMessages([
                 'product' => ['Produit non trouvé.'],
             ]);
@@ -613,7 +614,7 @@ class AdminService
                 'user_id' => $product->vendeur?->user_id,
                 'rating' => (float) ($product->vendeur?->rating ?? 0),
                 'verified' => (bool) ($product->vendeur?->verified ?? false),
-                'pending_review' => !((bool) ($product->vendeur?->verified ?? false)),
+                'pending_review' => ! ((bool) ($product->vendeur?->verified ?? false)),
             ],
             'is_active' => (bool) $product->is_active,
             'featured' => (bool) ($product->featured ?? false),
@@ -629,13 +630,13 @@ class AdminService
 
     private function isDiasporaOrder(?Order $order): bool
     {
-        if (!$order) {
+        if (! $order) {
             return false;
         }
 
         $country = strtoupper((string) ($order->user?->country ?? ''));
         if ($country !== '') {
-            return !in_array($country, ['SN', 'SENEGAL', 'SÉNÉGAL'], true);
+            return ! in_array($country, ['SN', 'SENEGAL', 'SÉNÉGAL'], true);
         }
 
         $address = strtolower((string) $order->shipping_address);

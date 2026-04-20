@@ -18,7 +18,6 @@ return new class extends Migration
             $table->integer('quantity')->default(1);
             $table->timestamps();
 
-
             // Un utilisateur ne peut avoir qu'une seule ligne par produit
             $table->unique(['user_id', 'product_id']);
 

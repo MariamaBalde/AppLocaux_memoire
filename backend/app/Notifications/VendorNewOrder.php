@@ -2,10 +2,10 @@
 
 /**
  * 🚀 Mail Provider: BREVO
- * 
+ *
  * Cette notification utilise Brevo SMTP pour l'envoi d'emails
  * Configuration: smtp-relay.brevo.com:587 (TLS)
- * 
+ *
  * @see https://app.brevo.com for dashboard and settings
  */
 
@@ -47,16 +47,16 @@ class VendorNewOrder extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->greeting('Bonjour ' . $notifiable->name . '!')
+            ->greeting('Bonjour '.$notifiable->name.'!')
             ->subject('🎉 Vous avez reçu une nouvelle commande!')
             ->line('Un client vient de passer une commande pour vos produits.')
             ->line('**Détails de la commande:**')
-            ->line('📌 **Numéro de commande**: ' . $this->order->order_number)
-            ->line('👤 **Client**: ' . $this->order->user->name)
-            ->line('📧 **Email client**: ' . $this->order->user->email)
-            ->line('📞 **Téléphone client**: ' . $this->order->user->phone)
-            ->line('💰 **Montant total**: ' . number_format($this->order->total, 2, ',', ' ') . ' XOF')
-            ->line('📍 **Adresse de livraison**: ' . $this->order->shipping_address)
+            ->line('📌 **Numéro de commande**: '.$this->order->order_number)
+            ->line('👤 **Client**: '.$this->order->user->name)
+            ->line('📧 **Email client**: '.$this->order->user->email)
+            ->line('📞 **Téléphone client**: '.$this->order->user->phone)
+            ->line('💰 **Montant total**: '.number_format($this->order->total, 2, ',', ' ').' XOF')
+            ->line('📍 **Adresse de livraison**: '.$this->order->shipping_address)
             ->line('')
             ->line('**Produits à expédier:**')
             ->line($this->getVendorItems($notifiable))
@@ -65,7 +65,7 @@ class VendorNewOrder extends Notification implements ShouldQueue
             ->line('1. Vérifier la disponibilité des produits')
             ->line('2. Préparer la livraison')
             ->line('3. Ajouter un numéro de suivi')
-            ->action('Voir la commande', url(env('FRONTEND_URL') . '/vendeur/orders/' . $this->order->id))
+            ->action('Voir la commande', url(env('FRONTEND_URL').'/vendeur/orders/'.$this->order->id))
             ->line('Merci de votre professionnel!')
             ->line('L\'équipe AfriShop');
     }
@@ -93,9 +93,10 @@ class VendorNewOrder extends Notification implements ShouldQueue
         });
 
         foreach ($vendorItems as $item) {
-            $details .= "• {$item->product->name} x{$item->quantity} - " . 
-                        number_format($item->price * $item->quantity, 2, ',', ' ') . ' XOF' . "\n";
+            $details .= "• {$item->product->name} x{$item->quantity} - ".
+                        number_format($item->price * $item->quantity, 2, ',', ' ').' XOF'."\n";
         }
+
         return $details;
     }
 }

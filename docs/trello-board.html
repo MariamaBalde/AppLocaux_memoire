@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tableau Scrum - app-produits-locaux</title>
+  <style>
+    :root {
+      --bg: linear-gradient(120deg, #f4f7fb, #eef4ff 45%, #f5f2ea);
+      --column-bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --line: #dbe4f0;
+      --primary: #0f766e;
+      --warning: #b45309;
+      --danger: #b91c1c;
+      --shadow: 0 10px 30px rgba(2, 15, 40, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      min-height: 100vh;
+    }
+
+    .topbar {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(5px);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .title {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+
+    .subtitle {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .board-wrap {
+      overflow-x: auto;
+      padding: 18px;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(260px, 1fr));
+      gap: 14px;
+      min-width: 1900px;
+      align-items: start;
+    }
+
+    .column {
+      background: var(--column-bg);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      min-height: 240px;
+      padding: 10px;
+    }
+
+    .column-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 8px 10px;
+      border-bottom: 1px dashed var(--line);
+      margin-bottom: 10px;
+    }
+
+    .column-title {
+      margin: 0;
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+
+    .count {
+      font-size: 0.78rem;
+      color: var(--muted);
+      background: #e8eef9;
+      border-radius: 999px;
+      padding: 3px 8px;
+    }
+
+    .cards {
+      min-height: 80px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid #e5eaf2;
+      border-radius: 12px;
+      padding: 10px;
+      cursor: grab;
+      box-shadow: 0 6px 18px rgba(6, 22, 56, 0.08);
+    }
+
+    .card:active {
+      cursor: grabbing;
+    }
+
+    .card-title {
+      margin: 0;
+      font-size: 0.9rem;
+      font-weight: 600;
+      line-height: 1.35;
+    }
+
+    .card-meta {
+      margin-top: 8px;
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .tag {
+      font-size: 0.72rem;
+      color: #334155;
+      border-radius: 999px;
+      padding: 3px 8px;
+      border: 1px solid #d6e0ee;
+      background: #f4f7fd;
+    }
+
+    .tag.us {
+      background: #e2f3f1;
+      border-color: #b4e3de;
+      color: #115e59;
+    }
+
+    .tag.api {
+      background: #e8efff;
+      border-color: #c5d6ff;
+      color: #1d4ed8;
+    }
+
+    .tag.front {
+      background: #fff5db;
+      border-color: #ffe59f;
+      color: #92400e;
+    }
+
+    .tag.blocked {
+      background: #fee2e2;
+      border-color: #fecaca;
+      color: #991b1b;
+    }
+
+    .drag-over {
+      outline: 2px dashed #3b82f6;
+      outline-offset: 2px;
+      border-radius: 10px;
+    }
+
+    .footer {
+      padding: 8px 18px 18px;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    @media (max-width: 900px) {
+      .title {
+        font-size: 1rem;
+      }
+
+      .subtitle {
+        font-size: 0.84rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <h1 class="title">Tableau Scrum - app-produits-locaux</h1>
+    <p class="subtitle">Organisation type Trello. Tu peux deplacer les cartes par glisser-deposer et prendre une capture d'ecran.</p>
+  </header>
+
+  <main class="board-wrap">
+    <section class="board" aria-label="Tableau Trello Scrum">
+      <article class="column">
+        <div class="column-header">
+          <h2 class="column-title">Product Backlog</h2>
+          <span class="count">6</span>
+        </div>
+        <div class="cards" data-column="Product Backlog">
+          <div class="card" draggable="true">
+            <p class="card-title">US 1.1 - Authentification client</p>
+            <div class="card-meta"><span class="tag us">US</span><span class="tag api">API</span></div>
+          </div>
+          <div class="card" draggable="true">
+            <p class="card-title">US 1.2 - Authentification vendeur</p>
+            <div class="card-meta"><span class="tag us">US</span><span class="tag api">Laravel</span></div>
+          </div>
+          <div class="card" draggable="true">
+            <p class="card-title">US 2.1 - Catalogue produits avec filtres</p>
+            <div class="card-meta"><span class="tag us">US</span><span class="tag front">React</span></div>
+          </div>
+          <div class="card" draggable="true">
+            <p class="card-title">US 2.2 - Gestion panier</p>
+            <div class="card-meta"><span class="tag us">US</span><span class="tag front">Front</span></div>
+          </div>
+          <div class="card" draggable="true">
+            <p class="card-title">US 3.1 - Dashboard vendeur</p>
+            <div class="card-meta"><span class="tag us">US</span><span class="tag front">UI</span></div>
+          </div>
+          <div class="card" draggable="true">
+            <p class="card-title">US 4.1 - Dashboard administrateur</p>
+            <div class="card-meta"><span class="tag us">US</span><span class="tag api">Admin</span></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="column">
+        <div class="column-header">
+          <h2 class="column-title">Sprint Backlog</h2>
+          <span class="count">4</span>
+        </div>
+        <div class="cards" data-column="Sprint Backlog">
+          <div class="card" draggable="true">
+            <p class="card-title">US 2.3 - Passage de commande</p>
+            <div class="card-meta"><span class="tag us">US</span><span class="tag api">Payments</span></div>
+          </div>
+          <div class="card" draggable="true">
+            <p class="card-title">US 2.4 - Historique des commandes client</p>
+            <div class="card-meta"><span class="tag us">US</span><span class="tag front">Client</span></div>
+          </div>
+          <div class="card" draggable="true">
+            <p class="card-title">US 3.2 - Gestion des produits vendeur</p>
+            <div class="card-meta"><span class="tag us">US</span><span class="tag front">CRUD</span></div>
+          </div>
+          <div class="card" draggable="true">
+            <p class="card-title">US 3.3 - Gestion des expeditions vendeur</p>
+            <div class="card-meta"><span class="tag us">US</span><span class="tag api">Shipping</span></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="column">
+        <div class="column-header">
+          <h2 class="column-title">To Do</h2>
+          <span class="count">3</span>
+        </div>
+        <div class="cards" data-column="To Do">
+          <div class="card" draggable="true">
+            <p class="card-title">TASK - Endpoint API detail commande</p>
+            <div class="card-meta"><span class="tag api">backend/routes/api.php</span></div>
+          </div>
+          <div class="card" draggable="true">
+            <p class="card-title">TASK - Page React OrderDetail client</p>
+            <div class="card-meta"><span class="tag front">frontend/src/pages/client</span></div>
+          </div>
+          <div class="card" draggable="true">
+            <p class="card-title">TASK - Validation statuts de livraison</p>
+            <div class="card-meta"><span class="tag api">Rule</span></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="column">
+        <div class="column-header">
+          <h2 class="column-title">In Progress</h2>
+          <span class="count">2</span>
+        </div>
+        <div class="cards" data-column="In Progress">
+          <div class="card" draggable="true">
+            <p class="card-title">TASK - Test integration paiement + livraison</p>
+            <div class="card-meta"><span class="tag api">PHPUnit</span></div>
+          </div>
+          <div class="card" draggable="true">
+            <p class="card-title">TASK - Optimisation recherche produit</p>
+            <div class="card-meta"><span class="tag front">SearchBar</span></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="column">
+        <div class="column-header">
+          <h2 class="column-title">Review</h2>
+          <span class="count">2</span>
+        </div>
+        <div class="cards" data-column="Review">
+          <div class="card" draggable="true">
+            <p class="card-title">TASK - Revue API Auth et roles</p>
+            <div class="card-meta"><span class="tag api">Code Review</span></div>
+          </div>
+          <div class="card" draggable="true">
+            <p class="card-title">TASK - Verification UX Dashboard vendeur</p>
+            <div class="card-meta"><span class="tag front">UI Test</span></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="column">
+        <div class="column-header">
+          <h2 class="column-title">Done</h2>
+          <span class="count">3</span>
+        </div>
+        <div class="cards" data-column="Done">
+          <div class="card" draggable="true">
+            <p class="card-title">TASK - Setup Laravel + React + Docker</p>
+            <div class="card-meta"><span class="tag api">Init</span></div>
+          </div>
+          <div class="card" draggable="true">
+            <p class="card-title">TASK - CRUD produits (base)</p>
+            <div class="card-meta"><span class="tag front">Feature</span></div>
+          </div>
+          <div class="card" draggable="true">
+            <p class="card-title">TASK - Authentification JWT/Passport</p>
+            <div class="card-meta"><span class="tag api">Security</span></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="column">
+        <div class="column-header">
+          <h2 class="column-title">Blockers</h2>
+          <span class="count">2</span>
+        </div>
+        <div class="cards" data-column="Blockers">
+          <div class="card" draggable="true">
+            <p class="card-title">BLOCKER - Cle API paiement non configuree en local</p>
+            <div class="card-meta"><span class="tag blocked">Urgent</span></div>
+          </div>
+          <div class="card" draggable="true">
+            <p class="card-title">BLOCKER - Notification email en attente de config SMTP</p>
+            <div class="card-meta"><span class="tag blocked">Infrastructure</span></div>
+          </div>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <p class="footer">Astuce: ouvre ce fichier dans ton navigateur puis fais une capture (plein ecran) pour ton rapport.</p>
+
+  <script>
+    const cards = document.querySelectorAll('.card');
+    const columns = document.querySelectorAll('.cards');
+    let draggedCard = null;
+
+    function updateCounts() {
+      document.querySelectorAll('.column').forEach((column) => {
+        const countBadge = column.querySelector('.count');
+        const cardCount = column.querySelectorAll('.card').length;
+        countBadge.textContent = String(cardCount);
+      });
+    }
+
+    cards.forEach((card) => {
+      card.addEventListener('dragstart', () => {
+        draggedCard = card;
+        setTimeout(() => card.style.opacity = '0.6', 0);
+      });
+
+      card.addEventListener('dragend', () => {
+        card.style.opacity = '1';
+        draggedCard = null;
+        updateCounts();
+      });
+    });
+
+    columns.forEach((zone) => {
+      zone.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        zone.classList.add('drag-over');
+      });
+
+      zone.addEventListener('dragleave', () => {
+        zone.classList.remove('drag-over');
+      });
+
+      zone.addEventListener('drop', (event) => {
+        event.preventDefault();
+        zone.classList.remove('drag-over');
+        if (draggedCard) zone.appendChild(draggedCard);
+      });
+    });
+
+    updateCounts();
+  </script>
+</body>
+</html>

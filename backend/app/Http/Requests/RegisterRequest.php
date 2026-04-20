@@ -30,7 +30,7 @@ class RegisterRequest extends FormRequest
             'phone' => ['nullable', 'string', 'max:20'],
             'address' => ['nullable', 'string'],
             'country' => ['required', 'string', 'size:2'],
-            
+
             // Champs vendeur (requis si role = vendeur)
             'shop_name' => ['exclude_unless:role,vendeur', 'required_if:role,vendeur', 'string', 'max:255'],
             'shop_description' => ['exclude_unless:role,vendeur', 'nullable', 'string'],
@@ -53,7 +53,6 @@ class RegisterRequest extends FormRequest
 
         $this->merge($data);
     }
-
 
     public function messages(): array
     {

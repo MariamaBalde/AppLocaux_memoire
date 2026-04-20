@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('payments', function (Blueprint $table) {
             $table->id();
-             $table->foreignId('order_id')->constrained()->onDelete('cascade');
+            $table->foreignId('order_id')->constrained()->onDelete('cascade');
             $table->decimal('amount', 10, 2);
             $table->enum('method', ['wave', 'orange_money', 'stripe', 'paypal', 'visa'])->default('wave');
             $table->enum('status', ['pending', 'completed', 'failed', 'refunded'])->default('pending');
@@ -22,7 +22,7 @@ return new class extends Migration
             $table->timestamp('paid_at')->nullable();
             $table->timestamps();
 
-               // Index
+            // Index
             $table->index('order_id');
             $table->index('transaction_id');
             $table->index('status');

@@ -3,10 +3,10 @@
 namespace App\Services\Order;
 
 use App\Events\OrderPlaced;
+use App\Models\Cart;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Payment;
-use App\Models\Cart;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\Shipping\ShippingService;
@@ -18,15 +18,13 @@ class OrderService
 {
     private const VENDOR_ALLOWED_STATUSES = ['processing', 'shipped', 'delivered'];
 
-    public function __construct(private ShippingService $shippingService)
-    {
-    }
+    public function __construct(private ShippingService $shippingService) {}
 
     private function resolveVendorOrder(User $user, int $id): Order
     {
         $vendor = $user->vendeur()->first();
 
-        if (!$user->isVendeur() || !$vendor) {
+        if (! $user->isVendeur() || ! $vendor) {
             throw ValidationException::withMessages([
                 'role' => ['Seuls les vendeurs peuvent accéder à cette ressource.'],
             ]);
@@ -47,7 +45,7 @@ class OrderService
             })
             ->find($id);
 
-        if (!$order) {
+        if (! $order) {
             throw ValidationException::withMessages([
                 'order' => ['Commande non trouvée pour ce vendeur.'],
             ]);
@@ -87,15 +85,15 @@ class OrderService
             foreach ($cartItems as $item) {
                 $product = $lockedProducts->get($item->product_id);
 
-                if (!$product || !$product->is_active) {
+                if (! $product || ! $product->is_active) {
                     throw ValidationException::withMessages([
-                        'product' => ['Le produit "' . ($product->name ?? 'inconnu') . '" n\'est plus disponible.'],
+                        'product' => ['Le produit "'.($product->name ?? 'inconnu').'" n\'est plus disponible.'],
                     ]);
                 }
 
                 if ($product->stock < $item->quantity) {
                     throw ValidationException::withMessages([
-                        'stock' => ['Stock insuffisant pour "' . $product->name . '". Disponible : ' . $product->stock],
+                        'stock' => ['Stock insuffisant pour "'.$product->name.'". Disponible : '.$product->stock],
                     ]);
                 }
             }
@@ -103,6 +101,7 @@ class OrderService
             // Calculer les montants à partir des prix verrouillés
             $subtotal = $cartItems->sum(function ($item) use ($lockedProducts) {
                 $product = $lockedProducts->get($item->product_id);
+
                 return (float) ($product?->price ?? 0) * $item->quantity;
             });
 
@@ -111,7 +110,7 @@ class OrderService
 
             // Générer un numéro de commande robuste en concurrence
             do {
-                $orderNumber = 'CMD-' . now()->format('Y') . '-' . strtoupper(Str::random(10));
+                $orderNumber = 'CMD-'.now()->format('Y').'-'.strtoupper(Str::random(10));
             } while (Order::where('order_number', $orderNumber)->exists());
 
             // Créer la commande
@@ -182,7 +181,7 @@ class OrderService
             return 0;
         }
 
-        return match($method) {
+        return match ($method) {
             'standard' => 3000,  // 3 000 FCFA
             'express' => 5000,   // 5 000 FCFA
             'pickup' => 0,       // Gratuit
@@ -209,10 +208,10 @@ class OrderService
         $sortBy = $filters['sort_by'] ?? 'created_at';
         $sortOrder = $filters['sort_order'] ?? 'desc';
         $validSortColumns = ['created_at', 'updated_at', 'status', 'total', 'order_number'];
-        if (!in_array($sortBy, $validSortColumns, true)) {
+        if (! in_array($sortBy, $validSortColumns, true)) {
             $sortBy = 'created_at';
         }
-        if (!in_array($sortOrder, ['asc', 'desc'], true)) {
+        if (! in_array($sortOrder, ['asc', 'desc'], true)) {
             $sortOrder = 'desc';
         }
         $query->orderBy($sortBy, $sortOrder);
@@ -234,7 +233,7 @@ class OrderService
             ->where('user_id', $user->id)
             ->find($id);
 
-        if (!$order) {
+        if (! $order) {
             throw ValidationException::withMessages([
                 'order' => ['Commande non trouvée.'],
             ]);
@@ -252,14 +251,14 @@ class OrderService
     {
         $order = Order::where('user_id', $user->id)->find($id);
 
-        if (!$order) {
+        if (! $order) {
             throw ValidationException::withMessages([
                 'order' => ['Commande non trouvée.'],
             ]);
         }
 
         // Vérifier le statut
-        if (!in_array($order->status, ['pending', 'processing'])) {
+        if (! in_array($order->status, ['pending', 'processing'])) {
             throw ValidationException::withMessages([
                 'order' => ['Cette commande ne peut plus être annulée.'],
             ]);
@@ -303,20 +302,20 @@ class OrderService
     {
         $order = Order::with('payment')->find($orderId);
 
-        if (!$order) {
+        if (! $order) {
             throw ValidationException::withMessages([
                 'order' => ['Commande non trouvée.'],
             ]);
         }
 
         // Seul le propriétaire de la commande ou un admin peut confirmer le paiement
-        if (!$user->isAdmin() && $order->user_id !== $user->id) {
+        if (! $user->isAdmin() && $order->user_id !== $user->id) {
             throw ValidationException::withMessages([
                 'permission' => ['Vous n\'êtes pas autorisé à confirmer ce paiement.'],
             ]);
         }
 
-        if (!$order->payment) {
+        if (! $order->payment) {
             throw ValidationException::withMessages([
                 'payment' => ['Aucun paiement lié à cette commande.'],
             ]);
@@ -331,7 +330,7 @@ class OrderService
         // Mettre à jour le paiement
         $order->payment->update([
             'status' => 'completed',
-            'transaction_id' => $data['transaction_id'] ?? 'TXN-' . time(),
+            'transaction_id' => $data['transaction_id'] ?? 'TXN-'.time(),
             'paid_at' => now(),
         ]);
 
@@ -358,7 +357,7 @@ class OrderService
     {
         $vendor = $user->vendeur()->first();
 
-        if (!$user->isVendeur() || !$vendor) {
+        if (! $user->isVendeur() || ! $vendor) {
             throw ValidationException::withMessages([
                 'role' => ['Seuls les vendeurs peuvent accéder à cette ressource.'],
             ]);
@@ -369,7 +368,7 @@ class OrderService
                 $q->where('vendeur_id', $vendor->id);
             });
 
-        if (!empty($filters['status'])) {
+        if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
 
@@ -378,6 +377,7 @@ class OrderService
 
         $orders->getCollection()->transform(function (Order $order) use ($vendor) {
             $order->setRelation('items', $order->items()->where('vendeur_id', $vendor->id)->with('product:id,name,images')->get());
+
             return $order;
         });
 
@@ -386,7 +386,7 @@ class OrderService
 
     public function updateVendorOrderStatus(User $user, int $id, string $targetStatus)
     {
-        if (!in_array($targetStatus, self::VENDOR_ALLOWED_STATUSES, true)) {
+        if (! in_array($targetStatus, self::VENDOR_ALLOWED_STATUSES, true)) {
             throw ValidationException::withMessages([
                 'status' => ['Statut invalide pour un vendeur.'],
             ]);
@@ -409,7 +409,7 @@ class OrderService
         ];
 
         $next = $allowedTransitions[$current] ?? [];
-        if (!in_array($targetStatus, $next, true)) {
+        if (! in_array($targetStatus, $next, true)) {
             throw ValidationException::withMessages([
                 'status' => ["Transition invalide: {$current} -> {$targetStatus}."],
             ]);
@@ -454,13 +454,13 @@ class OrderService
     {
         $order = Order::with(['items.product', 'payment'])->find($id);
 
-        if (!$order) {
+        if (! $order) {
             throw ValidationException::withMessages([
                 'order' => ['Commande non trouvée.'],
             ]);
         }
 
-        if (!$user->isAdmin() && $order->user_id !== $user->id) {
+        if (! $user->isAdmin() && $order->user_id !== $user->id) {
             throw ValidationException::withMessages([
                 'permission' => ['Vous n\'êtes pas autorisé à modifier cette commande.'],
             ]);

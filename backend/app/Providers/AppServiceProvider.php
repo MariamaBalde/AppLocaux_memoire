@@ -5,8 +5,8 @@ namespace App\Providers;
 use App\Models\Vendeur;
 use App\Observers\VendeurObserver;
 use Illuminate\Auth\Notifications\ResetPassword;
-use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -35,7 +35,8 @@ class AppServiceProvider extends ServiceProvider
 
         ResetPassword::createUrlUsing(function ($user, string $token): string {
             $frontend = rtrim((string) env('FRONTEND_URL', 'http://localhost:3000'), '/');
-            return $frontend . '/reset-password?token=' . urlencode($token) . '&email=' . urlencode($user->email);
+
+            return $frontend.'/reset-password?token='.urlencode($token).'&email='.urlencode($user->email);
         });
     }
 }

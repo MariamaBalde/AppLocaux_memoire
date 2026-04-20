@@ -20,7 +20,7 @@ class TokenService
     public function requestToken(array $params)
     {
         try {
-            $response = $this->client->post(config('app.url') . '/oauth/token', [
+            $response = $this->client->post(config('app.url').'/oauth/token', [
                 'form_params' => array_merge($params, [
                     'client_id' => config('passport.password_grant_client.id'),
                     'client_secret' => config('passport.password_grant_client.secret'),

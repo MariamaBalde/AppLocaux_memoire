@@ -12,12 +12,13 @@ use App\Http\Resources\ProductResource;
 use App\Services\AdminService;
 use App\Services\Product\ProductService;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class AdminController extends Controller
 {
     protected $adminService;
+
     protected $productService;
 
     public function __construct(AdminService $adminService, ProductService $productService)
@@ -48,9 +49,10 @@ class AdminController extends Controller
 
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la récupération des statistiques'
+                'message' => 'Erreur lors de la récupération des statistiques',
             ], 500);
         }
     }
@@ -72,9 +74,10 @@ class AdminController extends Controller
 
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur'
+                'message' => 'Erreur',
             ], 500);
         }
     }
@@ -97,9 +100,10 @@ class AdminController extends Controller
 
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur'
+                'message' => 'Erreur',
             ], 500);
         }
     }
@@ -121,9 +125,10 @@ class AdminController extends Controller
 
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur'
+                'message' => 'Erreur',
             ], 500);
         }
     }
@@ -153,9 +158,10 @@ class AdminController extends Controller
 
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur'
+                'message' => 'Erreur',
             ], 500);
         }
     }
@@ -185,9 +191,10 @@ class AdminController extends Controller
 
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur'
+                'message' => 'Erreur',
             ], 500);
         }
     }
@@ -217,9 +224,10 @@ class AdminController extends Controller
 
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur'
+                'message' => 'Erreur',
             ], 500);
         }
     }
@@ -249,9 +257,10 @@ class AdminController extends Controller
 
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur'
+                'message' => 'Erreur',
             ], 500);
         }
     }
@@ -276,7 +285,7 @@ class AdminController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (AuthorizationException $e) {
             return response()->json([
@@ -285,9 +294,10 @@ class AdminController extends Controller
             ], 403);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur'
+                'message' => 'Erreur',
             ], 500);
         }
     }
@@ -305,14 +315,14 @@ class AdminController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => $result['message']
+                'message' => $result['message'],
             ], 200);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
             report($e);
@@ -322,9 +332,10 @@ class AdminController extends Controller
                     'message' => 'Action non autorisée',
                 ], 403);
             }
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur'
+                'message' => 'Erreur',
             ], 500);
         }
     }
@@ -342,14 +353,14 @@ class AdminController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => $result['message'],
-                'data' => new AdminUserResource($result['user'])
+                'data' => new AdminUserResource($result['user']),
             ], 200);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (AuthorizationException $e) {
             return response()->json([
@@ -358,9 +369,10 @@ class AdminController extends Controller
             ], 403);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur'
+                'message' => 'Erreur',
             ], 500);
         }
     }
@@ -397,9 +409,10 @@ class AdminController extends Controller
                     'message' => 'Action non autorisée',
                 ], 403);
             }
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur'
+                'message' => 'Erreur',
             ], 500);
         }
     }
@@ -430,6 +443,7 @@ class AdminController extends Controller
             ], 422);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la création du produit vendeur',
@@ -453,6 +467,7 @@ class AdminController extends Controller
             ], 200);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors du chargement des produits',
@@ -485,6 +500,7 @@ class AdminController extends Controller
             ], 422);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la mise à jour du statut',
@@ -515,6 +531,7 @@ class AdminController extends Controller
             ], 422);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la mise en avant',
@@ -544,6 +561,7 @@ class AdminController extends Controller
             ], 422);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la suppression',

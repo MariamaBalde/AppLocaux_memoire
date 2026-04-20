@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\AuthPayloadResource;
-use App\Http\Resources\DataResource;
-use App\Http\Resources\UserResource;
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RefreshTokenRequest;
 use App\Http\Requests\RegisterRequest;
+use App\Http\Resources\AuthPayloadResource;
+use App\Http\Resources\DataResource;
+use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Services\Auth\AuthService;
 use Illuminate\Http\JsonResponse;
@@ -72,7 +72,8 @@ class AuthController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
-           report($e);
+            report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de l\'inscription',
@@ -137,7 +138,8 @@ class AuthController extends Controller
                 'errors' => $e->errors(),
             ], 401);
         } catch (\Exception $e) {
-           report($e);
+            report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la connexion',
@@ -165,7 +167,8 @@ class AuthController extends Controller
                 'errors' => $e->errors(),
             ], 401);
         } catch (\Exception $e) {
-           report($e);
+            report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la connexion OAuth',
@@ -211,7 +214,8 @@ class AuthController extends Controller
                 'message' => $result['message'],
             ], 200);
         } catch (\Exception $e) {
-           report($e);
+            report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la déconnexion',
@@ -232,7 +236,8 @@ class AuthController extends Controller
                 'data' => new UserResource($user),
             ], 200);
         } catch (\Exception $e) {
-           report($e);
+            report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la récupération de l\'utilisateur',
@@ -288,7 +293,8 @@ class AuthController extends Controller
                 'errors' => $e->errors(),
             ], 401);
         } catch (\Exception $e) {
-           report($e);
+            report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors du rafraîchissement',
@@ -331,27 +337,27 @@ class AuthController extends Controller
     public function verifyEmail(Request $request, int $id, string $hash)
     {
         $user = User::find($id);
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'success' => false,
                 'message' => 'Utilisateur introuvable.',
             ], 404);
         }
 
-        if (!hash_equals($hash, sha1($user->getEmailForVerification()))) {
+        if (! hash_equals($hash, sha1($user->getEmailForVerification()))) {
             return response()->json([
                 'success' => false,
                 'message' => 'Lien de vérification invalide.',
             ], 403);
         }
 
-        if (!$user->hasVerifiedEmail()) {
+        if (! $user->hasVerifiedEmail()) {
             $user->markEmailAsVerified();
         }
 
         $frontend = rtrim((string) env('FRONTEND_URL', 'http://localhost:3000'), '/');
-        if (!$request->expectsJson()) {
-            return redirect()->away($frontend . '/login?verified=1');
+        if (! $request->expectsJson()) {
+            return redirect()->away($frontend.'/login?verified=1');
         }
 
         return response()->json([
@@ -427,7 +433,7 @@ class AuthController extends Controller
     public function verifyAuthenticatedEmail(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user->hasVerifiedEmail()) {
+        if (! $user->hasVerifiedEmail()) {
             $user->markEmailAsVerified();
         }
 

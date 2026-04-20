@@ -1,6 +1,7 @@
+import { resolveApiOrigin } from '../config/apiBaseUrl';
+
 function getApiOrigin() {
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
-  return apiUrl.replace(/\/api\/?$/, '');
+  return resolveApiOrigin();
 }
 
 export function resolveImageUrl(rawUrl, fallback = '') {

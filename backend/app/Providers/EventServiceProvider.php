@@ -4,8 +4,8 @@ namespace App\Providers;
 
 use App\Events\OrderPlaced;
 use App\Events\VendorCreated;
-use App\Listeners\SendOrderConfirmation;
 use App\Listeners\NotifyVendor;
+use App\Listeners\SendOrderConfirmation;
 use App\Listeners\SendVendorVerificationNotification;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 

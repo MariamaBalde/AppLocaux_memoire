@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Middleware;
 
 use Closure;
@@ -15,12 +16,13 @@ class CheckAdmin
     public function handle(Request $request, Closure $next): Response
     {
 
-        if (!$request->user() || !$request->user()->isAdmin()) {
+        if (! $request->user() || ! $request->user()->isAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Accès refusé. Réservé aux administrateurs.'
+                'message' => 'Accès refusé. Réservé aux administrateurs.',
             ], 403);
         }
+
         return $next($request);
     }
 }

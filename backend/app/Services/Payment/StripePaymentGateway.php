@@ -11,8 +11,8 @@ class StripePaymentGateway implements PaymentGatewayInterface
     public function initiate(Payment $payment, Order $order, array $context = []): array
     {
         $frontendUrl = rtrim((string) ($context['frontend_url'] ?? env('FRONTEND_URL', 'http://localhost:3000')), '/');
-        $reference = 'STRIPE-' . now()->format('YmdHis') . '-' . strtoupper(Str::random(6));
-        $paymentUrl = $frontendUrl . '/orders/' . $order->id . '/confirmation?payment_ref=' . $reference . '&gateway=stripe';
+        $reference = 'STRIPE-'.now()->format('YmdHis').'-'.strtoupper(Str::random(6));
+        $paymentUrl = $frontendUrl.'/orders/'.$order->id.'/confirmation?payment_ref='.$reference.'&gateway=stripe';
 
         return [
             'provider' => 'stripe',

@@ -10,8 +10,8 @@ use App\Http\Resources\ProductCollection;
 use App\Models\Category;
 use App\Services\Category\CategoryService;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class CategoryController extends Controller
 {
@@ -46,9 +46,10 @@ class CategoryController extends Controller
 
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la récupération des catégories'
+                'message' => 'Erreur lors de la récupération des catégories',
             ], 500);
         }
     }
@@ -71,13 +72,14 @@ class CategoryController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Catégorie non trouvée',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 404);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la récupération de la catégorie'
+                'message' => 'Erreur lors de la récupération de la catégorie',
             ], 500);
         }
     }
@@ -100,13 +102,14 @@ class CategoryController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Catégorie non trouvée',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 404);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la récupération de la catégorie'
+                'message' => 'Erreur lors de la récupération de la catégorie',
             ], 500);
         }
     }
@@ -134,7 +137,7 @@ class CategoryController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur de validation',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (AuthorizationException $e) {
             return response()->json([
@@ -143,9 +146,10 @@ class CategoryController extends Controller
             ], 403);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la création de la catégorie'
+                'message' => 'Erreur lors de la création de la catégorie',
             ], 500);
         }
     }
@@ -177,7 +181,7 @@ class CategoryController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur de validation',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (AuthorizationException $e) {
             return response()->json([
@@ -186,9 +190,10 @@ class CategoryController extends Controller
             ], 403);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la mise à jour de la catégorie'
+                'message' => 'Erreur lors de la mise à jour de la catégorie',
             ], 500);
         }
     }
@@ -211,14 +216,14 @@ class CategoryController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => $result['message']
+                'message' => $result['message'],
             ], 200);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (AuthorizationException $e) {
             return response()->json([
@@ -227,9 +232,10 @@ class CategoryController extends Controller
             ], 403);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la suppression de la catégorie'
+                'message' => 'Erreur lors de la suppression de la catégorie',
             ], 500);
         }
     }
@@ -253,13 +259,14 @@ class CategoryController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Catégorie non trouvée',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 404);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la récupération des produits'
+                'message' => 'Erreur lors de la récupération des produits',
             ], 500);
         }
     }

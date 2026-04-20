@@ -6,12 +6,13 @@ on:
 
 jobs:
   backend-tests:
+    name: Backend Tests (PHPUnit)
     runs-on: ubuntu-latest
     env:
       APP_ENV: testing
       APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
       DB_CONNECTION: sqlite
-      DB_DATABASE: :memory:
+      DB_DATABASE: ':memory:'
       CACHE_STORE: array
       SESSION_DRIVER: array
       QUEUE_CONNECTION: sync
@@ -36,12 +37,49 @@ jobs:
         run: |
           cp .env.example .env
           php artisan key:generate --force
+          php artisan passport:keys --force
           php artisan config:clear
 
       - name: Run backend tests
         run: php vendor/bin/phpunit
 
+  code-quality:
+    name: Code Quality (Lint / Format / Static Check)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Check PHP code style (Laravel Pint)
+        working-directory: backend
+        run: php vendor/bin/pint --test
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint frontend (ESLint)
+        working-directory: frontend
+        run: npx eslint "src/**/*.{js,jsx}"
+
   frontend-build:
+    name: Frontend Build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -61,3 +99,15 @@ jobs:
 
       - name: Build frontend
         run: npm run build
+
+  docker-build:
+    name: Docker Images Build (Backend + Frontend)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build backend Docker image
+        run: docker build -t app-produits-locaux-backend:ci ./backend
+
+      - name: Build frontend Docker image
+        run: docker build -t app-produits-locaux-frontend:ci ./frontend

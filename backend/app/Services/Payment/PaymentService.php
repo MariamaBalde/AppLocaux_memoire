@@ -14,8 +14,7 @@ class PaymentService
         private WavePaymentGateway $waveGateway,
         private OrangeMoneyGateway $orangeMoneyGateway,
         private StripePaymentGateway $stripeGateway
-    ) {
-    }
+    ) {}
 
     /**
      * Initialise un paiement pour une commande existante.
@@ -24,13 +23,13 @@ class PaymentService
     {
         $order = Order::with('payment')->findOrFail((int) $data['order_id']);
 
-        if (!$user->isAdmin() && $order->user_id !== $user->id) {
+        if (! $user->isAdmin() && $order->user_id !== $user->id) {
             throw ValidationException::withMessages([
                 'permission' => ['Vous n\'êtes pas autorisé à initier ce paiement.'],
             ]);
         }
 
-        if (!$order->payment) {
+        if (! $order->payment) {
             throw ValidationException::withMessages([
                 'payment' => ['Aucun paiement associé à cette commande.'],
             ]);
@@ -86,7 +85,7 @@ class PaymentService
             ->where('transaction_id', $payload['transaction_id'])
             ->first();
 
-        if (!$payment) {
+        if (! $payment) {
             throw ValidationException::withMessages([
                 'transaction_id' => ['Transaction introuvable.'],
             ]);
@@ -125,7 +124,7 @@ class PaymentService
     {
         $order = Order::with('payment')->findOrFail($orderId);
 
-        if (!$user->isAdmin() && $order->user_id !== $user->id) {
+        if (! $user->isAdmin() && $order->user_id !== $user->id) {
             throw ValidationException::withMessages([
                 'permission' => ['Vous n\'êtes pas autorisé à consulter ce paiement.'],
             ]);
@@ -174,13 +173,13 @@ class PaymentService
             return;
         }
 
-        if (!$signature || !$timestamp) {
+        if (! $signature || ! $timestamp) {
             throw ValidationException::withMessages([
                 'signature' => ['Signature callback manquante.'],
             ]);
         }
 
-        if (!ctype_digit((string) $timestamp)) {
+        if (! ctype_digit((string) $timestamp)) {
             throw ValidationException::withMessages([
                 'signature' => ['Timestamp callback invalide.'],
             ]);
@@ -196,10 +195,10 @@ class PaymentService
             ]);
         }
 
-        $signedPayload = $timestamp . '.' . $validated['transaction_id'] . '.' . $validated['status'];
+        $signedPayload = $timestamp.'.'.$validated['transaction_id'].'.'.$validated['status'];
         $expected = hash_hmac('sha256', $signedPayload, $secret);
 
-        if (!hash_equals($expected, (string) $signature)) {
+        if (! hash_equals($expected, (string) $signature)) {
             throw ValidationException::withMessages([
                 'signature' => ['Signature callback invalide.'],
             ]);

@@ -23,7 +23,7 @@ class UserValidationService
 
         if ($user->statut !== 'actif') {
             throw ValidationException::withMessages([
-                'email' => ['Votre compte a été ' . $user->statut . '. Contactez l\'administrateur.'],
+                'email' => ['Votre compte a été '.$user->statut.'. Contactez l\'administrateur.'],
             ]);
         }
     }

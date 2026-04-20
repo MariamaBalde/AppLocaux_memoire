@@ -18,8 +18,7 @@ class ShippingController extends Controller
     public function __construct(
         private ShippingService $shippingService,
         private OrderService $orderService
-    ) {
-    }
+    ) {}
 
     public function methods(): JsonResponse
     {
@@ -30,6 +29,7 @@ class ShippingController extends Controller
             ], 200);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la récupération des méthodes de livraison.',
@@ -65,6 +65,7 @@ class ShippingController extends Controller
             ], 422);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de l\'estimation des frais de livraison.',
@@ -90,6 +91,7 @@ class ShippingController extends Controller
             ], 422);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la mise à jour de la livraison.',

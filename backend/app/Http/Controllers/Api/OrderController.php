@@ -11,8 +11,8 @@ use App\Http\Resources\PaymentResource;
 use App\Models\Order;
 use App\Services\Order\OrderService;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class OrderController extends Controller
 {
@@ -70,7 +70,7 @@ class OrderController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $status === 409 ? 'Conflit de stock' : 'Erreur de validation',
-                'errors' => $errors
+                'errors' => $errors,
             ], $status);
         } catch (AuthorizationException $e) {
             return response()->json([
@@ -82,9 +82,10 @@ class OrderController extends Controller
             ], 403);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la création de la commande'
+                'message' => 'Erreur lors de la création de la commande',
             ], 500);
         }
     }
@@ -116,9 +117,10 @@ class OrderController extends Controller
                     ],
                 ], 403);
             }
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la récupération des commandes'
+                'message' => 'Erreur lors de la récupération des commandes',
             ], 500);
         }
     }
@@ -142,7 +144,7 @@ class OrderController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Commande non trouvée',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 404);
         } catch (AuthorizationException $e) {
             return response()->json([
@@ -154,9 +156,10 @@ class OrderController extends Controller
             ], 403);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la récupération de la commande'
+                'message' => 'Erreur lors de la récupération de la commande',
             ], 500);
         }
     }
@@ -185,7 +188,7 @@ class OrderController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (AuthorizationException $e) {
             return response()->json([
@@ -197,9 +200,10 @@ class OrderController extends Controller
             ], 403);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de l\'annulation'
+                'message' => 'Erreur lors de l\'annulation',
             ], 500);
         }
     }
@@ -228,7 +232,7 @@ class OrderController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (AuthorizationException $e) {
             return response()->json([
@@ -240,9 +244,10 @@ class OrderController extends Controller
             ], 403);
         } catch (\Exception $e) {
             report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la confirmation du paiement'
+                'message' => 'Erreur lors de la confirmation du paiement',
             ], 500);
         }
     }

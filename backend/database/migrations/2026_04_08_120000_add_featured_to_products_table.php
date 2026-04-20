@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (!Schema::hasColumn('products', 'featured')) {
+        if (! Schema::hasColumn('products', 'featured')) {
             Schema::table('products', function (Blueprint $table) {
                 $table->boolean('featured')->default(false)->after('is_active');
             });

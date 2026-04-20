@@ -18,7 +18,7 @@ class OrderFactory extends Factory
 
         return [
             'user_id' => User::factory(),
-            'order_number' => 'CMD-' . now()->format('Y') . '-' . strtoupper(Str::random(8)),
+            'order_number' => 'CMD-'.now()->format('Y').'-'.strtoupper(Str::random(8)),
             'total' => $subtotal + $shipping,
             'status' => $this->faker->randomElement(['pending', 'processing', 'shipped', 'delivered']),
             'shipping_method' => $this->faker->randomElement(['pickup', 'standard', 'express']),

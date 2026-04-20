@@ -9,6 +9,7 @@ class Product extends Model
 {
     /** @use HasFactory<\Database\Factories\ProductFactory> */
     use HasFactory;
+
     protected $fillable = [
         'vendeur_id',
         'category_id',
@@ -37,7 +38,7 @@ class Product extends Model
         return $this->belongsTo(Vendeur::class);
     }
 
-       public function category()
+    public function category()
     {
         return $this->belongsTo(Category::class);
     }
@@ -52,26 +53,20 @@ class Product extends Model
         return $this->hasMany(OrderItem::class);
     }
 
-
-
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
     }
-
 
     public function scopeInStock($query)
     {
         return $query->where('stock', '>', 0);
     }
 
-
-
-    public  function scopeByCategory($query, $categoryId)
+    public function scopeByCategory($query, $categoryId)
     {
         return $query->where('category_id', $categoryId);
     }
-
 
     public function canEdit(User $user): bool
     {
@@ -81,17 +76,15 @@ class Product extends Model
         if ($user->isVendeur()) {
             return $this->vendeur_id === $user->vendeur->id;
         }
+
         return false;
     }
-
 
     // Accessors
     public function getFormattedPriceAttribute()
     {
-        return number_format($this->price, 2) . ' FCFA';
+        return number_format($this->price, 2).' FCFA';
     }
-
-
 
     public function getMainImageAttribute()
     {
