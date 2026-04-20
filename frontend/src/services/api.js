@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { authStorage } from './authStorage';
+import { resolveApiBaseUrl } from '../config/apiBaseUrl';
 
-// URL de votre API Laravel
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+const API_URL = resolveApiBaseUrl();
 
 const api = axios.create({
   baseURL: API_URL,

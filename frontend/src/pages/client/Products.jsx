@@ -7,6 +7,7 @@ import Navbar from '../../components/common/Navbar';
 import { useI18n } from '../../context/I18nContext';
 import { productService } from '../../services/productService';
 import { categoryService } from '../../services/categoryService';
+import { resolveApiBaseUrl } from '../../config/apiBaseUrl';
 import toast from 'react-hot-toast';
 import './products.css';
 
@@ -101,6 +102,26 @@ function extractPagination(payload) {
   };
 }
 
+function getErrorMessage(error, fallbackMessage) {
+  if (!error) return fallbackMessage;
+  if (typeof error === 'string') return error;
+  if (error.message && typeof error.message === 'string') {
+    if (error.message.toLowerCase().includes('network')) {
+      return `API injoignable (${resolveApiBaseUrl()}). Vérifiez que le backend est démarré et que REACT_APP_API_URL est correcte.`;
+    }
+    return error.message;
+  }
+  if (error.error && typeof error.error === 'string') return error.error;
+  if (Array.isArray(error.errors) && error.errors.length > 0) return String(error.errors[0]);
+  if (error.errors && typeof error.errors === 'object') {
+    const firstKey = Object.keys(error.errors)[0];
+    const firstValue = firstKey ? error.errors[firstKey] : null;
+    if (Array.isArray(firstValue) && firstValue.length > 0) return String(firstValue[0]);
+    if (typeof firstValue === 'string') return firstValue;
+  }
+  return fallbackMessage;
+}
+
 function getVisiblePaginationItems(currentPage, lastPage) {
   if (lastPage <= 7) {
     return Array.from({ length: lastPage }, (_, index) => index + 1);
@@ -187,8 +208,9 @@ export default function Products() {
       setProducts(list);
       setPagination(extractPagination(response));
     } catch (fetchError) {
-      setError('Erreur lors du chargement des produits');
-      toast.error('Erreur lors du chargement des produits');
+      const message = getErrorMessage(fetchError, 'Erreur lors du chargement des produits');
+      setError(message);
+      toast.error(message);
       setProducts([]);
       setPagination({ current_page: 1, last_page: 1, total: 0, per_page: 0 });
     } finally {
