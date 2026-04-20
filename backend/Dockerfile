@@ -30,7 +30,10 @@ RUN cp .env.example .env || true
 # Generate application key
 RUN php artisan key:generate || true
 
+# Startup script (migrations + app boot)
+RUN chmod +x docker/start.sh
+
 # Expose port
 EXPOSE 8000
 
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+CMD ["sh", "docker/start.sh"]
