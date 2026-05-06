@@ -19,8 +19,10 @@ export const authService = {
   // Connexion
   async login(email, password) {
     try {
-      const response = await api.post('/auth/login', { email, password });
+     
 
+      const response = await api.post('/auth/login', { email, password });
+      
       const normalized = normalizeAuthPayload(response.data);
 
       if (normalized.success && normalized.user) {
