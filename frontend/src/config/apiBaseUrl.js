@@ -19,8 +19,9 @@ export function resolveApiBaseUrl() {
   const envApiUrl = normalizeUrl(process.env.REACT_APP_API_URL || process.env.ONLINE_API_URL);
   if (typeof window !== 'undefined') {
     if (isLocalHostname(window.location.hostname)) {
-      // En dev local, passer par le proxy CRA (/api) pour éviter les blocages CORS.
-      return '/api';
+      // En dev local, cibler directement l'API Laravel locale pour éviter
+      // les décalages de configuration entre le proxy CRA et le backend.
+      return envApiUrl ? ensureApiSuffix(envApiUrl) : LOCAL_API_URL;
     }
   }
 
