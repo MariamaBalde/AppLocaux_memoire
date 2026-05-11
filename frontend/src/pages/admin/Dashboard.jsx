@@ -1,29 +1,20 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  AlertTriangle,
   BarChart3,
-  ChevronDown,
-  ChevronRight,
-  ChevronUp,
-  Download,
-  House,
   Loader2,
   Mail,
   Menu,
-  Plus,
-  Search,
   Settings,
   ShoppingCart,
-  Truck,
-  ShieldCheck,
-  ShieldQuestion,
-  ShieldX,
   Users,
   Wrench,
   X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useLocation, useNavigate } from 'react-router-dom';
+import ClientsTable from '../../components/admin/ClientsTable';
+import OrdersTable from '../../components/admin/OrdersTable';
+import VendorsTable from '../../components/admin/VendorsTable';
 import { useAuth } from '../../context/AuthContext';
 import { adminService } from '../../services/adminService';
 
@@ -122,14 +113,6 @@ function getInitials(name) {
     .join('') || '?';
 }
 
-function weeklySeries(seedValue) {
-  const seed = Number(seedValue || 1);
-  return Array.from({ length: 7 }, (_, index) => {
-    const base = ((seed * (index + 3) * 17) % 90) + 10;
-    return Math.min(100, Math.max(8, base));
-  });
-}
-
 function normalizeOrderStage(status) {
   const value = String(status || '').toLowerCase();
   if (value === 'pending') return 'nouvelles';
@@ -153,6 +136,37 @@ function stageLabel(stage) {
   return labels[stage] || 'Nouvelles';
 }
 
+function getOrderVendorNames(order) {
+  const names = new Set();
+
+  (order?.items || []).forEach((item) => {
+    const vendeurName = item?.vendeur?.shop_name || item?.vendeur?.user_name;
+    if (vendeurName) {
+      names.add(vendeurName);
+      return;
+    }
+
+    const productVendorName = item?.product?.vendeur?.shop_name || item?.product?.vendeur?.user_name;
+    if (productVendorName) {
+      names.add(productVendorName);
+    }
+  });
+
+  return Array.from(names);
+}
+
+function getOrderProductsLabel(order) {
+  const names = Array.from(new Set(
+    (order?.items || [])
+      .map((item) => item?.product?.name)
+      .filter(Boolean)
+  ));
+
+  if (!names.length) return 'Produits non renseignes';
+  if (names.length === 1) return names[0];
+  return `${names[0]} +${names.length - 1}`;
+}
+
 const KPI_TONE = {
   orange: { text: 'text-[#bf5a21]', bar: 'bg-[#c7632a]' },
   amber: { text: 'text-[#b27b16]', bar: 'bg-[#bc8f2f]' },
@@ -161,14 +175,6 @@ const KPI_TONE = {
 };
 
 const DESTINATION_COLORS = ['bg-[#c7672e]', 'bg-[#cfa646]', 'bg-[#6fa06d]', 'bg-[#4a76b8]', 'bg-[#8e7665]', 'bg-[#74b8cb]'];
-
-const STATUS_STYLE = {
-  Actif: 'text-[#2f7a3b]',
-  'Signale': 'text-[#b45c1c]',
-  'En revision': 'text-[#2f5f9f]',
-  Suspendu: 'text-[#8f2f46]',
-  Banni: 'text-[#7d2537]',
-};
 
 export default function AdminDashboard() {
   const { logout } = useAuth();
@@ -198,7 +204,6 @@ export default function AdminDashboard() {
   const [vendorPage, setVendorPage] = useState(1);
   const [expandedVendorId, setExpandedVendorId] = useState(null);
   const [processingActionId, setProcessingActionId] = useState('');
-  const [bannedVendorIds, setBannedVendorIds] = useState(() => new Set());
   const [searchClient, setSearchClient] = useState('');
   const [clientFilter, setClientFilter] = useState('all');
   const [clientSort, setClientSort] = useState('spent_desc');
@@ -291,23 +296,6 @@ export default function AdminDashboard() {
       mounted = false;
     };
   }, []);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem('admin-banned-vendors');
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        setBannedVendorIds(new Set(parsed.map((id) => String(id))));
-      }
-    } catch (err) {
-      // ignore malformed cache
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem('admin-banned-vendors', JSON.stringify(Array.from(bannedVendorIds)));
-  }, [bannedVendorIds]);
 
   const navSections = useMemo(
     () => [
@@ -467,33 +455,35 @@ export default function AdminDashboard() {
   const vendorRows = useMemo(() => {
     const topVendorMap = new Map(topVendors.map((vendor) => [String(vendor.id), vendor]));
     const pendingVendorIds = new Set(pendingVendors.map((vendor) => String(vendor.id)));
-    const avgOrderValue = Number(advancedStats.average_order_value || 0);
+    const recentOrdersByVendor = recentOrders.reduce((acc, order) => {
+      const vendorIds = Array.from(new Set((order?.items || []).map((item) => String(item?.vendeur_id || '')).filter(Boolean)));
+
+      vendorIds.forEach((vendorId) => {
+        if (!acc[vendorId]) acc[vendorId] = 0;
+        acc[vendorId] += 1;
+      });
+
+      return acc;
+    }, {});
 
     return vendorUsers
       .filter((user) => user?.vendeur?.id)
       .map((user) => {
         const vendor = user.vendeur;
         const top = topVendorMap.get(String(vendor.id));
-        const salesCount = Number(top?.total_sales ?? vendor.total_sales ?? 0);
+        const salesTotal = Number(top?.total_sales ?? vendor.total_sales ?? 0);
         const rating = Number(top?.rating ?? vendor.rating ?? 0);
-        const reviewCount = Math.max(0, Math.round((salesCount || 0) / 4));
-        const orders = Math.max(0, Math.round((salesCount || 0) / 2));
-        const gmv = Number(salesCount * (avgOrderValue || 15000));
         const isPending = pendingVendorIds.has(String(vendor.id)) || !vendor.verified;
-        const isBanned = bannedVendorIds.has(String(vendor.id));
         const isSuspended = String(user.statut || '').toLowerCase() === 'suspendu';
 
         let status = 'Actif';
-        if (isBanned) status = 'Banni';
-        else if (isSuspended) status = 'Suspendu';
+        if (isSuspended) status = 'Suspendu';
         else if (isPending) status = 'En attente';
         else if (rating > 0 && rating < 3.5) status = 'Signale';
 
         let kyc = 'Verifie';
         if (isPending) kyc = 'En cours';
         if (!vendor.shop_name || !user.email) kyc = 'Manquant';
-
-        const activity = weeklySeries(vendor.id || user.id);
 
         return {
           id: String(vendor.id),
@@ -502,19 +492,19 @@ export default function AdminDashboard() {
           shopName: vendor.shop_name || 'Boutique sans nom',
           email: user.email || 'email-non-defini',
           city: user.country || 'SN',
-          products: Number(vendor.total_products || 0),
-          orders,
-          gmv,
+          products: Number(top?.products_count ?? vendor.products_count ?? 0),
+          orders: Number(top?.orders_count ?? recentOrdersByVendor[String(vendor.id)] ?? 0),
+          ordersSource: top?.orders_count !== undefined ? 'global' : 'recent',
+          gmv: salesTotal,
           rating,
-          reviewCount,
           status,
           kyc,
           joinedAt: user.created_at,
           flagged: status === 'Signale',
-          activity,
+          verifiedEmail: Boolean(user.email_verified_at),
         };
       });
-  }, [advancedStats.average_order_value, bannedVendorIds, pendingVendors, topVendors, vendorUsers]);
+  }, [pendingVendors, recentOrders, topVendors, vendorUsers]);
 
   const vendorSummary = useMemo(() => {
     const total = vendorRows.length;
@@ -585,7 +575,7 @@ export default function AdminDashboard() {
       row.email,
       row.city,
       row.products,
-      row.orders,
+      row.ordersSource === 'global' ? row.orders : `${row.orders} (recentes)`,
       row.gmv,
       row.rating ? row.rating.toFixed(1) : 'Non note',
       row.kyc,
@@ -653,8 +643,9 @@ export default function AdminDashboard() {
     try {
       setProcessingActionId(`ban-${row.id}`);
       await adminService.rejectVendor(row.id, 'Banni par administration');
-      setBannedVendorIds((prev) => new Set([...prev, String(row.id)]));
       setVendorUsers((prev) => prev.filter((user) => String(user.vendeur?.id) !== String(row.id)));
+      setTopVendors((prev) => prev.filter((vendor) => String(vendor.id) !== String(row.id)));
+      setPendingVendors((prev) => prev.filter((vendor) => String(vendor.id) !== String(row.id)));
       if (expandedVendorId === row.id) setExpandedVendorId(null);
       toast.success('Vendeur banni');
     } catch (err) {
@@ -665,7 +656,7 @@ export default function AdminDashboard() {
   };
 
   const clientRows = useMemo(() => {
-    const ordersByUser = recentOrders.reduce((acc, order) => {
+    const recentOrdersByUser = recentOrders.reduce((acc, order) => {
       const key = String(order?.user_id || '');
       if (!key) return acc;
       if (!acc[key]) acc[key] = [];
@@ -687,29 +678,13 @@ export default function AdminDashboard() {
     };
 
     return clientUsers.map((user) => {
-        const rowOrders = (ordersByUser[String(user.id)] || []).slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-        const ordersCount = rowOrders.length;
-        const totalSpent = rowOrders.reduce((sum, order) => sum + Number(order.total || 0), 0);
-        const avgBasket = ordersCount > 0 ? totalSpent / ordersCount : 0;
-        const lastOrder = rowOrders[0];
-        const lastOrderDate = lastOrder?.created_at ? new Date(lastOrder.created_at) : null;
-        const daysSinceOrder = lastOrderDate ? Math.floor((Date.now() - lastOrderDate.getTime()) / (1000 * 60 * 60 * 24)) : 9999;
-        const createdAt = new Date(user.created_at || Date.now());
-        const accountAgeDays = Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
-
-        const rawCountry = String(user.country || 'SN').toUpperCase();
-        const isDiaspora = rawCountry !== 'SN';
-        const isInactive = daysSinceOrder > 90 || (ordersCount === 0 && accountAgeDays > 45);
-        const isNew = accountAgeDays <= 30 || ordersCount <= 2;
-        const isVip = ordersCount >= 10 || totalSpent >= 120000;
-        let segment = 'Local actif';
-        if (isInactive) segment = 'Inactif';
-        else if (isNew) segment = 'Nouveau';
-        else if (isDiaspora) segment = 'Diaspora';
-        if (isVip && !isInactive) segment = 'VIP';
-
-        const fidelityPoints = Math.max(1, Math.min(5, Math.round(totalSpent / 45000) || 1));
-        const fidelityProgress = clampPercent((totalSpent / 220000) * 100);
+        const metrics = user.client_metrics || {};
+        const rowOrders = (recentOrdersByUser[String(user.id)] || []).slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        const rawCountry = String(metrics.country_code || user.country || 'SN').toUpperCase();
+        const totalSpent = Number(metrics.total_spent || 0);
+        const ordersCount = Number(metrics.orders_count || 0);
+        const avgBasket = Number(metrics.average_order_value || 0);
+        const lastOrderAt = metrics.last_order_at;
 
         return {
           id: String(user.id),
@@ -718,16 +693,17 @@ export default function AdminDashboard() {
           countryCode: rawCountry,
           flag: flagByCountry[rawCountry] || '🌍',
           city: user.country || 'SN',
-          segment,
+          segment: metrics.segment || 'Non classe',
           ordersCount,
           totalSpent,
           avgBasket,
-          lastPurchaseLabel: lastOrder?.created_at ? timeAgo(lastOrder.created_at) : 'Aucun achat',
-          paymentMethod: formatPaymentMethod(lastOrder?.payment?.method),
+          lastPurchaseLabel: lastOrderAt ? timeAgo(lastOrderAt) : 'Aucun achat',
+          paymentMethod: formatPaymentMethod(metrics.last_payment_method),
           status: String(user.statut || 'actif').toLowerCase(),
-          fidelityPoints,
-          fidelityProgress,
+          fidelityPoints: Number(metrics.fidelity_points || 1),
+          fidelityProgress: clampPercent(metrics.fidelity_progress || 0),
           createdAt: user.created_at,
+          metricsSource: metrics.source || 'full_history',
           orderHistory: rowOrders.slice(0, 6).map((order) => ({
             id: order.id,
             number: order.order_number || order.id,
@@ -858,10 +834,7 @@ export default function AdminDashboard() {
   };
 
   const orderRows = useMemo(() => {
-    const vendors = vendorUsers.filter((user) => user?.vendeur?.id);
-    const carriers = ['DHL', 'Chronopost', 'La Poste', 'UPS', 'FedEx'];
-
-    return recentOrders.map((order, index) => {
+    return recentOrders.map((order) => {
       const stage = normalizeOrderStage(order.status);
       const createdAt = new Date(order.created_at || Date.now());
       const ageHours = Math.max(0, Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60)));
@@ -878,10 +851,8 @@ export default function AdminDashboard() {
             expediees: 4,
             livrees: 5,
           }[stage] || 1);
-      const vendor = vendors.length ? vendors[index % vendors.length] : null;
-      const trackingNumber = `TRK-${String(order.id).padStart(5, '0')}-${String((index % 89) + 10)}`;
-      const etaDays = stage === 'livrees' ? 0 : Math.max(1, 5 - progressCount);
-      const estimatedDate = new Date(createdAt.getTime() + (etaDays * 24 * 60 * 60 * 1000));
+      const vendorNames = getOrderVendorNames(order);
+      const trackingNumber = order.tracking_number || 'Non attribue';
 
       return {
         id: String(order.id),
@@ -899,15 +870,15 @@ export default function AdminDashboard() {
         paymentMethod: formatPaymentMethod(order?.payment?.method),
         dateLabel: timeAgo(order.created_at),
         rawDate: order.created_at,
-        vendorName: vendor?.name || vendor?.vendeur?.shop_name || 'Vendeur local',
-        productsLabel: `Produit x${Math.max(1, (index % 5) + 1)}`,
+        vendorName: vendorNames.length ? vendorNames.join(', ') : 'Vendeur non renseigne',
+        productsLabel: getOrderProductsLabel(order),
         progressCount,
-        transporter: carriers[index % carriers.length],
+        transporter: order.shipping_method || 'Non renseigne',
         trackingNumber,
-        estimatedDate: formatDateShort(estimatedDate.toISOString()),
+        estimatedDate: order.tracking_number ? 'Suivi en cours' : 'Non disponible',
       };
     });
-  }, [recentOrders, vendorUsers]);
+  }, [recentOrders]);
 
   const orderPipeline = useMemo(() => {
     const base = [
@@ -1293,757 +1264,85 @@ export default function AdminDashboard() {
         ) : null}
 
         {isClientPage ? (
-          <section className="mb-6 rounded-lg border border-[#e4d9d0] bg-white p-5">
-            <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h2 className="text-2xl font-semibold text-[#261911]">Gestion des clients</h2>
-                <p className="text-sm text-[#6d5b4d]">
-                  {formatNumber(clientSummary.total)} clients inscrits - {formatNumber(clientSummary.newThisMonth)} nouveaux ce mois
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={exportClientCsv}
-                  className="inline-flex items-center gap-2 rounded-md border border-[#dfcfc2] px-3 py-2 text-sm text-[#4e382a] hover:bg-[#f7f0ea]"
-                >
-                  <Download className="h-4 w-4" />
-                  Exporter CSV
-                </button>
-                <button
-                  type="button"
-                  onClick={() => window.location.assign(`mailto:?subject=Campagne clients&body=Segment: ${clientFilter}`)}
-                  className="inline-flex items-center gap-2 rounded-md border border-[#dfcfc2] px-3 py-2 text-sm text-[#4e382a] hover:bg-[#f7f0ea]"
-                >
-                  <Mail className="h-4 w-4" />
-                  Campagne email
-                </button>
-              </div>
-            </div>
-
-            <div className="mb-6 grid gap-6 xl:grid-cols-2">
-              <article className="rounded-md border border-[#eee1d8] p-4">
-                <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.14em] text-[#6a4f3d]">Indicateurs clés</h3>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <p className="text-xs text-[#6f5d4e]">Total clients</p>
-                    <p className="text-3xl font-semibold text-[#23170f]">{formatNumber(clientSummary.total)}</p>
-                    <p className="text-xs text-[#4b8a4f]">+{formatNumber(clientSummary.newThisMonth)} ce mois</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-[#6f5d4e]">Diaspora</p>
-                    <p className="text-3xl font-semibold text-[#2c5ea0]">{formatNumber(clientSummary.segmentCount.Diaspora)}</p>
-                    <p className="text-xs text-[#6f5d4e]">
-                      {clientSummary.total ? `${Math.round((clientSummary.segmentCount.Diaspora / clientSummary.total) * 100)}% du total` : '0% du total'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-[#6f5d4e]">Panier moyen</p>
-                    <p className="text-3xl font-semibold text-[#23170f]">{formatNumber(Math.round(clientSummary.avgBasket))}</p>
-                    <p className="text-xs text-[#4b8a4f]">Calcul auto</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-[#6f5d4e]">Taux de retour</p>
-                    <p className="text-3xl font-semibold text-[#23170f]">{Math.round(clientSummary.returnRate)}%</p>
-                    <p className="text-xs text-[#4b8a4f]">Clients avec +2 commandes</p>
-                  </div>
-                </div>
-              </article>
-
-              <article className="rounded-md border border-[#eee1d8] p-4">
-                <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.14em] text-[#6a4f3d]">Segmentation clients</h3>
-                <div className="space-y-3">
-                  {[
-                    { label: 'VIP', key: 'VIP', color: 'bg-[#c89a34]' },
-                    { label: 'Diaspora', key: 'Diaspora', color: 'bg-[#5a7fbe]' },
-                    { label: 'Local actif', key: 'Local actif', color: 'bg-[#68a057]' },
-                    { label: 'Nouveaux', key: 'Nouveau', color: 'bg-[#2e65a8]' },
-                    { label: 'Inactifs', key: 'Inactif', color: 'bg-[#8f7d6f]' },
-                  ].map((item) => {
-                    const value = clientSummary.segmentCount[item.key] || 0;
-                    const percent = clientSummary.total ? Math.round((value / clientSummary.total) * 100) : 0;
-                    return (
-                      <div key={item.key} className="grid grid-cols-[120px_1fr_70px] items-center gap-3 text-sm">
-                        <span>{item.label}</span>
-                        <div className="h-2 rounded-full bg-[#efe7e0]">
-                          <div className={`h-full rounded-full ${item.color}`} style={{ width: `${percent}%` }} />
-                        </div>
-                        <span className="text-right text-[#5f4a3b]">{value} ({percent}%)</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </article>
-            </div>
-
-            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-              <label className="relative min-w-[240px] flex-1 max-w-md">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#987f6c]" />
-                <input
-                  type="search"
-                  value={searchClient}
-                  onChange={(event) => setSearchClient(event.target.value)}
-                  placeholder="Nom, email, pays..."
-                  className="w-full rounded-md border border-[#e5d7cb] py-2 pl-9 pr-3 text-sm outline-none focus:border-[#c7632a]"
-                />
-              </label>
-
-              <div className="flex flex-wrap items-center gap-2">
-                {[
-                  { key: 'all', label: 'Tous' },
-                  { key: 'vip', label: 'VIP' },
-                  { key: 'diaspora', label: 'Diaspora' },
-                  { key: 'local', label: 'Local' },
-                  { key: 'new', label: 'Nouveaux' },
-                  { key: 'inactive', label: 'Inactifs' },
-                ].map((filter) => (
-                  <button
-                    key={filter.key}
-                    type="button"
-                    onClick={() => setClientFilter(filter.key)}
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-                      clientFilter === filter.key ? 'bg-[#5a7fbe] text-white' : 'bg-[#f4eee9] text-[#5f4636]'
-                    }`}
-                  >
-                    {filter.label}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-[#624c3c]">Trier:</span>
-                <select
-                  value={clientSort}
-                  onChange={(event) => setClientSort(event.target.value)}
-                  className="rounded-md border border-[#e5d7cb] px-2 py-1.5 text-sm outline-none focus:border-[#5a7fbe]"
-                >
-                  <option value="spent_desc">Depenses desc</option>
-                  <option value="spent_asc">Depenses asc</option>
-                  <option value="orders_desc">Commandes</option>
-                  <option value="name">Nom A-Z</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1150px] text-sm">
-                <thead>
-                  <tr className="border-b border-[#ecdfd4] text-left text-xs uppercase tracking-[0.14em] text-[#6f5d4e]">
-                    <th className="px-2 py-3"></th>
-                    <th className="px-2 py-3">Client</th>
-                    <th className="px-2 py-3">Pays</th>
-                    <th className="px-2 py-3">Segment</th>
-                    <th className="px-2 py-3">Commandes</th>
-                    <th className="px-2 py-3">Total depense</th>
-                    <th className="px-2 py-3">Dernier achat</th>
-                    <th className="px-2 py-3">Mode paiement</th>
-                    <th className="px-2 py-3">Fidelite</th>
-                    <th className="px-2 py-3">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pagedClients.map((row) => {
-                    const expanded = expandedClientId === row.id;
-                    return (
-                      <Fragment key={row.id}>
-                        <tr className="border-b border-[#f3e9e1] align-top">
-                          <td className="px-2 py-3">
-                            <button
-                              type="button"
-                              onClick={() => setExpandedClientId(expanded ? null : row.id)}
-                              className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-[#d8c6b9] text-[#6b5342] hover:bg-[#f7f0ea]"
-                            >
-                              {expanded ? <ChevronUp className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                            </button>
-                          </td>
-                          <td className="px-2 py-3">
-                            <div className="flex items-center gap-2">
-                              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#5f7fb6] text-xs font-semibold text-white">
-                                {getInitials(row.name)}
-                              </span>
-                              <div>
-                                <p className="font-medium text-[#2b1c13]">{row.name}</p>
-                                <p className="text-xs text-[#7c6a5c]">{row.email}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-2 py-3 text-[#3e2b1f]">{row.flag} {row.city}</td>
-                          <td className="px-2 py-3">
-                            <span className="rounded-full bg-[#eef3fc] px-2 py-1 text-xs font-semibold text-[#355c93]">{row.segment}</span>
-                          </td>
-                          <td className="px-2 py-3 text-[#3e2b1f]">{row.ordersCount}</td>
-                          <td className="px-2 py-3 text-[#3e2b1f]">{formatNumber(row.totalSpent)}</td>
-                          <td className="px-2 py-3 text-[#3e2b1f]">{row.lastPurchaseLabel}</td>
-                          <td className="px-2 py-3 text-[#3e2b1f]">{row.paymentMethod}</td>
-                          <td className="px-2 py-3">
-                            <div className="flex items-center gap-2">
-                              <div className="h-1.5 w-20 rounded-full bg-[#efe7e0]">
-                                <div className="h-full rounded-full bg-[#c89a34]" style={{ width: `${row.fidelityProgress}%` }} />
-                              </div>
-                              <span className="text-xs text-[#6f5d4e]">{'●'.repeat(row.fidelityPoints)}</span>
-                            </div>
-                          </td>
-                          <td className="px-2 py-3">
-                            <button
-                              type="button"
-                              disabled={processingActionId === `client-${row.id}`}
-                              onClick={() => handleClientStatusToggle(row)}
-                              className="rounded-md border border-[#f0d7c2] bg-[#fff7ef] px-2 py-1 text-xs font-semibold text-[#8d4f22] disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              {row.status === 'suspendu' ? 'Reactiver' : 'Suspendre'}
-                            </button>
-                          </td>
-                        </tr>
-                        {expanded ? (
-                          <tr className="border-b border-[#f3e9e1] bg-[#fcf9f6]">
-                            <td colSpan={10} className="px-4 py-4">
-                              <div className="grid gap-4 lg:grid-cols-[1fr_1.5fr]">
-                                <div>
-                                  <p className="text-sm font-semibold text-[#2a1a10]">Detail client</p>
-                                  <p className="mt-2 text-sm text-[#5f4a3b]">Segment: <span className="font-medium text-[#2b1c13]">{row.segment}</span></p>
-                                  <p className="text-sm text-[#5f4a3b]">Total depense: <span className="font-medium text-[#2b1c13]">{formatNumber(row.totalSpent)} FCFA</span></p>
-                                  <p className="text-sm text-[#5f4a3b]">Commandes: <span className="font-medium text-[#2b1c13]">{row.ordersCount}</span></p>
-                                  <p className="text-sm text-[#5f4a3b]">Panier moyen auto: <span className="font-medium text-[#2b1c13]">{formatNumber(Math.round(row.avgBasket))} FCFA</span></p>
-                                </div>
-                                <div>
-                                  <p className="text-sm font-semibold text-[#2a1a10]">Historique commandes</p>
-                                  <div className="mt-2 space-y-2">
-                                    {row.orderHistory.length ? row.orderHistory.map((order) => (
-                                      <div key={order.id} className="rounded-md border border-[#eadfd5] bg-white px-3 py-2">
-                                        <div className="flex items-center justify-between text-sm">
-                                          <p className="font-medium text-[#2b1c13]">#{order.number}</p>
-                                          <p className="text-[#2b1c13]">{formatNumber(order.total)} FCFA</p>
-                                        </div>
-                                        <p className="text-xs text-[#7a6758]">{formatDateShort(order.date)} - {order.payment} - {order.status}</p>
-                                      </div>
-                                    )) : (
-                                      <p className="text-sm text-[#7a6758]">Aucune commande recemment.</p>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        ) : null}
-                      </Fragment>
-                    );
-                  })}
-                  {!pagedClients.length ? (
-                    <tr>
-                      <td colSpan={10} className="px-2 py-10 text-center text-sm text-[#7a6556]">
-                        Aucun client trouve avec ces filtres.
-                      </td>
-                    </tr>
-                  ) : null}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-[#6d5a4b]">
-              <p>
-                Affichage {pagedClients.length ? `${(currentClientPage - 1) * clientPerPage + 1}-${(currentClientPage - 1) * clientPerPage + pagedClients.length}` : '0'}
-                {' '}sur {filteredClientRows.length} clients
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setClientPage((prev) => Math.max(1, prev - 1))}
-                  disabled={currentClientPage <= 1}
-                  className="rounded-md border border-[#dfcfc2] px-2 py-1 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <ChevronDown className="h-4 w-4 rotate-90" />
-                </button>
-                <span className="rounded-md bg-[#5a7fbe] px-2.5 py-1 text-white">{currentClientPage}</span>
-                <span>/ {totalClientPages}</span>
-                <button
-                  type="button"
-                  onClick={() => setClientPage((prev) => Math.min(totalClientPages, prev + 1))}
-                  disabled={currentClientPage >= totalClientPages}
-                  className="rounded-md border border-[#dfcfc2] px-2 py-1 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <ChevronDown className="h-4 w-4 -rotate-90" />
-                </button>
-              </div>
-            </div>
-          </section>
+          <ClientsTable
+            clientSummary={clientSummary}
+            searchClient={searchClient}
+            setSearchClient={setSearchClient}
+            clientFilter={clientFilter}
+            setClientFilter={setClientFilter}
+            clientSort={clientSort}
+            setClientSort={setClientSort}
+            exportClientCsv={exportClientCsv}
+            pagedClients={pagedClients}
+            expandedClientId={expandedClientId}
+            setExpandedClientId={setExpandedClientId}
+            processingActionId={processingActionId}
+            handleClientStatusToggle={handleClientStatusToggle}
+            currentClientPage={currentClientPage}
+            clientPerPage={clientPerPage}
+            totalClientPages={totalClientPages}
+            setClientPage={setClientPage}
+            filteredClientRows={filteredClientRows}
+            formatNumber={formatNumber}
+            formatDateShort={formatDateShort}
+            getInitials={getInitials}
+          />
         ) : null}
 
         {isOrderPage ? (
-          <section className="mb-6 rounded-lg border border-[#e4d9d0] bg-white p-5">
-            <div className="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-              {orderPipeline.map((step) => (
-                <button
-                  key={step.key}
-                  type="button"
-                  onClick={() => {
-                    setOrderFilter(step.key);
-                    const first = filteredOrders.find((row) => row.stage === step.key) || orderRows.find((row) => row.stage === step.key);
-                    if (first) setSelectedOrderId(first.id);
-                  }}
-                  className="rounded-md border border-[#eee1d8] p-3 text-left hover:bg-[#f8f3ee]"
-                >
-                  <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-[#5f4738]">
-                    <span className={`inline-flex h-2.5 w-2.5 rounded-full ${step.dot}`} />
-                    {step.label}
-                  </p>
-                  <p className="text-3xl font-semibold text-[#23170f]">{formatNumber(step.count)}</p>
-                  <p className="text-sm text-[#5f4a3b]">{formatNumber(step.amount)} FCFA</p>
-                  <div className="mt-2 h-1.5 rounded-full bg-[#efe7e0]">
-                    <div
-                      className={`h-full rounded-full ${step.color}`}
-                      style={{ width: `${orderRows.length ? (step.count / orderRows.length) * 100 : 0}%` }}
-                    />
-                  </div>
-                </button>
-              ))}
-            </div>
-
-            {urgentOrders.length ? (
-              <div className="mb-4 flex items-center gap-2 rounded-md border border-[#f4d7ca] bg-[#fff4ef] px-3 py-2 text-sm text-[#8c3f1d]">
-                <AlertTriangle className="h-4 w-4" />
-                {urgentOrders.length} commande(s) bloquee(s) +48h
-              </div>
-            ) : null}
-
-            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-              <label className="relative min-w-[240px] flex-1 max-w-md">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#987f6c]" />
-                <input
-                  type="search"
-                  value={orderSearch}
-                  onChange={(event) => setOrderSearch(event.target.value)}
-                  placeholder="N° commande, client, produit..."
-                  className="w-full rounded-md border border-[#e5d7cb] py-2 pl-9 pr-3 text-sm outline-none focus:border-[#c7632a]"
-                />
-              </label>
-
-              <div className="flex flex-wrap items-center gap-2">
-                {[
-                  { key: 'all', label: 'Toutes' },
-                  { key: 'local', label: 'Locales' },
-                  { key: 'international', label: 'Internationales' },
-                  { key: 'urgent', label: 'Urgentes' },
-                ].map((filter) => (
-                  <button
-                    key={filter.key}
-                    type="button"
-                    onClick={() => {
-                      if (filter.key === 'local' || filter.key === 'international') {
-                        setOrderTypeFilter(filter.key);
-                        setOrderFilter('all');
-                        return;
-                      }
-                      setOrderTypeFilter('all');
-                      setOrderFilter(filter.key);
-                    }}
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-                      (filter.key === orderFilter || filter.key === orderTypeFilter) ? 'bg-[#c7632a] text-white' : 'bg-[#f4eee9] text-[#5f4636]'
-                    }`}
-                  >
-                    {filter.label}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-[#624c3c]">Trier:</span>
-                <select
-                  value={orderSort}
-                  onChange={(event) => setOrderSort(event.target.value)}
-                  className="rounded-md border border-[#e5d7cb] px-2 py-1.5 text-sm outline-none focus:border-[#c7632a]"
-                >
-                  <option value="date_desc">Date desc</option>
-                  <option value="amount_desc">Montant desc</option>
-                  <option value="amount_asc">Montant asc</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1200px] text-sm">
-                <thead>
-                  <tr className="border-b border-[#ecdfd4] text-left text-xs uppercase tracking-[0.14em] text-[#6f5d4e]">
-                    <th className="px-2 py-3">N° commande</th>
-                    <th className="px-2 py-3">Client</th>
-                    <th className="px-2 py-3">Produits</th>
-                    <th className="px-2 py-3">Montant</th>
-                    <th className="px-2 py-3">Type</th>
-                    <th className="px-2 py-3">Statut</th>
-                    <th className="px-2 py-3">Progression</th>
-                    <th className="px-2 py-3">Vendeur</th>
-                    <th className="px-2 py-3">Date</th>
-                    <th className="px-2 py-3">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pagedOrders.map((row) => (
-                    <tr
-                      key={row.id}
-                      onClick={() => setSelectedOrderId(row.id)}
-                      className="cursor-pointer border-b border-[#f3e9e1] hover:bg-[#fbf7f3]"
-                    >
-                      <td className="px-2 py-3 font-medium text-[#2b1c13]">
-                        {row.orderNumber} {row.isUrgent ? <span className="text-xs text-[#a54a23]">Alerte 48h+</span> : null}
-                      </td>
-                      <td className="px-2 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#8c4c82] text-xs font-semibold text-white">
-                            {row.clientInitials}
-                          </span>
-                          <div>
-                            <p className="text-[#2b1c13]">{row.clientName}</p>
-                            <p className="text-xs text-[#7c6a5c]">{row.clientCountry}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-2 py-3 text-[#3e2b1f]">{row.productsLabel}</td>
-                      <td className="px-2 py-3 text-[#3e2b1f]">{formatNumber(row.amount)}</td>
-                      <td className="px-2 py-3 text-[#3e2b1f]">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[#eef3fc] px-2 py-1 text-xs font-semibold text-[#355c93]">
-                          {row.orderType === 'international' ? <Truck className="h-3.5 w-3.5" /> : <House className="h-3.5 w-3.5" />}
-                          {row.orderType === 'international' ? 'Intl' : 'Local'}
-                        </span>
-                      </td>
-                      <td className="px-2 py-3 text-[#3e2b1f]">{row.stageLabel}</td>
-                      <td className="px-2 py-3">
-                        <div className="flex items-center gap-1">
-                          {Array.from({ length: 5 }).map((_, idx) => (
-                            <span
-                              key={`${row.id}-${idx}`}
-                              className={`inline-flex h-1.5 w-4 rounded-full ${
-                                idx < row.progressCount ? (row.stage === 'annulees' ? 'bg-[#a64c26]' : 'bg-[#4b8f30]') : 'bg-[#e4d9d0]'
-                              }`}
-                            />
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-2 py-3 text-[#3e2b1f]">{row.vendorName}</td>
-                      <td className="px-2 py-3 text-[#3e2b1f]">{row.dateLabel}</td>
-                      <td className="px-2 py-3 text-[#3e2b1f]">
-                        <ChevronRight className="h-4 w-4" />
-                      </td>
-                    </tr>
-                  ))}
-                  {!pagedOrders.length ? (
-                    <tr>
-                      <td colSpan={10} className="px-2 py-10 text-center text-sm text-[#7a6556]">
-                        Aucune commande trouvee avec ces filtres.
-                      </td>
-                    </tr>
-                  ) : null}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-[#6d5a4b]">
-              <p>
-                Affichage {pagedOrders.length ? `${(currentOrderPage - 1) * orderPerPage + 1}-${(currentOrderPage - 1) * orderPerPage + pagedOrders.length}` : '0'}
-                {' '}sur {filteredOrders.length} commandes
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setOrderPage((prev) => Math.max(1, prev - 1))}
-                  disabled={currentOrderPage <= 1}
-                  className="rounded-md border border-[#dfcfc2] px-2 py-1 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <ChevronDown className="h-4 w-4 rotate-90" />
-                </button>
-                <span className="rounded-md bg-[#c7632a] px-2.5 py-1 text-white">{currentOrderPage}</span>
-                <span>/ {totalOrderPages}</span>
-                <button
-                  type="button"
-                  onClick={() => setOrderPage((prev) => Math.min(totalOrderPages, prev + 1))}
-                  disabled={currentOrderPage >= totalOrderPages}
-                  className="rounded-md border border-[#dfcfc2] px-2 py-1 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <ChevronDown className="h-4 w-4 -rotate-90" />
-                </button>
-              </div>
-            </div>
-          </section>
+          <OrdersTable
+            orderPipeline={orderPipeline}
+            setOrderFilter={setOrderFilter}
+            filteredOrders={filteredOrders}
+            orderRows={orderRows}
+            setSelectedOrderId={setSelectedOrderId}
+            urgentOrders={urgentOrders}
+            orderSearch={orderSearch}
+            setOrderSearch={setOrderSearch}
+            orderTypeFilter={orderTypeFilter}
+            setOrderTypeFilter={setOrderTypeFilter}
+            orderFilter={orderFilter}
+            orderSort={orderSort}
+            setOrderSort={setOrderSort}
+            pagedOrders={pagedOrders}
+            selectedOrder={selectedOrder}
+            currentOrderPage={currentOrderPage}
+            orderPerPage={orderPerPage}
+            totalOrderPages={totalOrderPages}
+            setOrderPage={setOrderPage}
+            formatNumber={formatNumber}
+            formatDateShort={formatDateShort}
+          />
         ) : null}
 
         {isVendorPage ? (
-          <section className="mb-6 rounded-lg border border-[#e4d9d0] bg-white p-5">
-          <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="text-2xl font-semibold text-[#261911]">Gestion des vendeurs</h2>
-              <p className="text-sm text-[#6d5b4d]">
-                {formatNumber(vendorSummary.total)} vendeurs - {formatNumber(vendorSummary.pending)} en attente de validation
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={exportVendorCsv}
-                className="inline-flex items-center gap-2 rounded-md border border-[#dfcfc2] px-3 py-2 text-sm text-[#4e382a] hover:bg-[#f7f0ea]"
-              >
-                <Download className="h-4 w-4" />
-                Exporter CSV
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate('/admin/products/create')}
-                className="inline-flex items-center gap-2 rounded-md bg-[#c7632a] px-3 py-2 text-sm font-semibold text-white hover:bg-[#af5523]"
-              >
-                <Plus className="h-4 w-4" />
-                Ajouter vendeur
-              </button>
-            </div>
-          </div>
-
-          <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <article className="rounded-md border border-[#eee1d8] p-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#6a4f3d]">Total vendeurs</p>
-              <p className="mt-2 text-3xl font-semibold text-[#23170f]">{formatNumber(vendorSummary.total)}</p>
-              <p className="mt-1 text-xs text-[#6f5d4e]">{formatNumber(vendorSummary.active)} actifs</p>
-            </article>
-            <article className="rounded-md border border-[#eee1d8] p-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#6a4f3d]">En attente KYC</p>
-              <p className="mt-2 text-3xl font-semibold text-[#bf5a21]">{formatNumber(vendorSummary.pending)}</p>
-              <p className="mt-1 text-xs text-[#6f5d4e]">Action requise</p>
-            </article>
-            <article className="rounded-md border border-[#eee1d8] p-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#6a4f3d]">Signales / litiges</p>
-              <p className="mt-2 text-3xl font-semibold text-[#b56a22]">{formatNumber(vendorSummary.flagged)}</p>
-              <p className="mt-1 text-xs text-[#6f5d4e]">Surveillance</p>
-            </article>
-            <article className="rounded-md border border-[#eee1d8] p-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#6a4f3d]">GMV total vendeurs</p>
-              <p className="mt-2 text-3xl font-semibold text-[#23170f]">{formatCompact(vendorSummary.totalGMV)}</p>
-              <p className="mt-1 text-xs text-[#6f5d4e]">FCFA estime</p>
-            </article>
-          </div>
-
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            <label className="relative min-w-[240px] flex-1 max-w-md">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#987f6c]" />
-              <input
-                type="search"
-                value={searchVendor}
-                onChange={(event) => setSearchVendor(event.target.value)}
-                placeholder="Rechercher un vendeur..."
-                className="w-full rounded-md border border-[#e5d7cb] py-2 pl-9 pr-3 text-sm outline-none focus:border-[#c7632a]"
-              />
-            </label>
-
-            <div className="flex flex-wrap items-center gap-2">
-              {[
-                { key: 'all', label: `Tous (${vendorSummary.total})` },
-                { key: 'active', label: `Actifs (${vendorSummary.active})` },
-                { key: 'pending', label: `En attente (${vendorSummary.pending})` },
-                { key: 'flagged', label: `Signales (${vendorSummary.flagged})` },
-                { key: 'suspended', label: `Suspendus (${vendorSummary.suspended})` },
-              ].map((filter) => (
-                <button
-                  key={filter.key}
-                  type="button"
-                  onClick={() => setVendorFilter(filter.key)}
-                  className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-                    vendorFilter === filter.key ? 'bg-[#c7632a] text-white' : 'bg-[#f4eee9] text-[#5f4636]'
-                  }`}
-                >
-                  {filter.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-[#624c3c]">Trier:</span>
-              <select
-                value={vendorSort}
-                onChange={(event) => setVendorSort(event.target.value)}
-                className="rounded-md border border-[#e5d7cb] px-2 py-1.5 text-sm outline-none focus:border-[#c7632a]"
-              >
-                <option value="gmv_desc">GMV desc</option>
-                <option value="gmv_asc">GMV asc</option>
-                <option value="name">Nom A-Z</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1080px] text-sm">
-              <thead>
-                <tr className="border-b border-[#ecdfd4] text-left text-xs uppercase tracking-[0.14em] text-[#6f5d4e]">
-                  <th className="px-2 py-3"></th>
-                  <th className="px-2 py-3">Vendeur</th>
-                  <th className="px-2 py-3">Ville</th>
-                  <th className="px-2 py-3">Produits</th>
-                  <th className="px-2 py-3">Commandes</th>
-                  <th className="px-2 py-3">GMV (FCFA)</th>
-                  <th className="px-2 py-3">Note</th>
-                  <th className="px-2 py-3">KYC</th>
-                  <th className="px-2 py-3">Statut</th>
-                  <th className="px-2 py-3">Inscrit le</th>
-                  <th className="px-2 py-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pagedVendors.map((row) => {
-                  const expanded = expandedVendorId === row.id;
-                  const maxActivity = Math.max(...row.activity, 1);
-                  return (
-                    <Fragment key={row.id}>
-                      <tr key={row.id} className="border-b border-[#f3e9e1] align-top">
-                        <td className="px-2 py-3">
-                          <button
-                            type="button"
-                            onClick={() => setExpandedVendorId(expanded ? null : row.id)}
-                            className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-[#d8c6b9] text-[#6b5342] hover:bg-[#f7f0ea]"
-                            aria-label={expanded ? 'Fermer details vendeur' : 'Ouvrir details vendeur'}
-                          >
-                            {expanded ? <ChevronUp className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                          </button>
-                        </td>
-                        <td className="px-2 py-3">
-                          <div className="flex items-center gap-2">
-                            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#c9723a] text-xs font-semibold text-white">
-                              {getInitials(row.name)}
-                            </span>
-                            <div>
-                              <p className="font-medium text-[#2b1c13]">{row.name}</p>
-                              <p className="text-xs text-[#7c6a5c]">{row.email}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-2 py-3 text-[#3e2b1f]">{row.city}</td>
-                        <td className="px-2 py-3 text-[#3e2b1f]">{formatNumber(row.products)}</td>
-                        <td className="px-2 py-3 text-[#3e2b1f]">{formatNumber(row.orders)}</td>
-                        <td className="px-2 py-3 text-[#3e2b1f]">{formatNumber(row.gmv)}</td>
-                        <td className="px-2 py-3 text-[#3e2b1f]">
-                          {row.rating > 0 ? `★★★★★ ${row.rating.toFixed(1)}` : 'Non note'}
-                        </td>
-                        <td className="px-2 py-3">
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${
-                              row.kyc === 'Verifie'
-                                ? 'bg-[#edf8ef] text-[#2f7a3b]'
-                                : row.kyc === 'En cours'
-                                  ? 'bg-[#fff5e8] text-[#b7771e]'
-                                  : 'bg-[#fcecee] text-[#9d3349]'
-                            }`}
-                          >
-                            {row.kyc === 'Verifie' ? <ShieldCheck className="h-3.5 w-3.5" /> : null}
-                            {row.kyc === 'En cours' ? <ShieldQuestion className="h-3.5 w-3.5" /> : null}
-                            {row.kyc === 'Manquant' ? <ShieldX className="h-3.5 w-3.5" /> : null}
-                            {row.kyc}
-                          </span>
-                        </td>
-                        <td className={`px-2 py-3 font-medium ${STATUS_STYLE[row.status] || 'text-[#3e2b1f]'}`}>
-                          {row.status}
-                        </td>
-                        <td className="px-2 py-3 text-[#3e2b1f]">{formatDateShort(row.joinedAt)}</td>
-                        <td className="px-2 py-3">
-                          <div className="flex flex-wrap gap-1.5">
-                            <button
-                              type="button"
-                              disabled={processingActionId === `approve-${row.id}` || row.kyc === 'Verifie' || row.status === 'Banni'}
-                              onClick={() => handleApproveVendor(row)}
-                              className="rounded-md border border-[#c8e4cf] bg-[#f2fbf5] px-2 py-1 text-xs font-semibold text-[#2f7a3b] disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              Approuver
-                            </button>
-                            <button
-                              type="button"
-                              disabled={processingActionId === `suspend-${row.id}` || row.status === 'Banni'}
-                              onClick={() => handleToggleSuspend(row)}
-                              className="rounded-md border border-[#f0d7c2] bg-[#fff7ef] px-2 py-1 text-xs font-semibold text-[#8d4f22] disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              {row.status === 'Suspendu' ? 'Reactiver' : 'Suspendre'}
-                            </button>
-                            <button
-                              type="button"
-                              disabled={processingActionId === `ban-${row.id}` || row.status === 'Banni'}
-                              onClick={() => handleBanVendor(row)}
-                              className="rounded-md border border-[#f3ccd4] bg-[#fff1f4] px-2 py-1 text-xs font-semibold text-[#8f2f46] disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              Bannir
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                      {expanded ? (
-                        <tr className="border-b border-[#f3e9e1] bg-[#fcf9f6]">
-                          <td colSpan={11} className="px-4 py-4">
-                            <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
-                              <div>
-                                <p className="text-sm font-semibold text-[#2a1a10]">Detail vendeur</p>
-                                <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                                  <p className="text-sm text-[#5f4a3b]">Boutique: <span className="font-medium text-[#2b1c13]">{row.shopName}</span></p>
-                                  <p className="text-sm text-[#5f4a3b]">Email: <span className="font-medium text-[#2b1c13]">{row.email}</span></p>
-                                  <p className="text-sm text-[#5f4a3b]">KYC: <span className="font-medium text-[#2b1c13]">{row.kyc}</span></p>
-                                  <p className="text-sm text-[#5f4a3b]">Signalements: <span className="font-medium text-[#2b1c13]">{row.flagged ? 'Oui' : 'Non'}</span></p>
-                                </div>
-                              </div>
-                              <div>
-                                <p className="text-sm font-semibold text-[#2a1a10]">Activite hebdomadaire</p>
-                                <div className="mt-3 flex h-20 items-end gap-1.5">
-                                  {row.activity.map((value, index) => (
-                                    <div key={`${row.id}-bar-${index}`} className="flex flex-1 flex-col items-center justify-end">
-                                      <div
-                                        className="w-full rounded-t-sm bg-gradient-to-t from-[#c4672d] to-[#e7b48a]"
-                                        style={{ height: `${Math.max(8, (value / maxActivity) * 100)}%` }}
-                                      />
-                                    </div>
-                                  ))}
-                                </div>
-                                <div className="mt-2 flex justify-between text-[10px] uppercase tracking-[0.08em] text-[#8e7767]">
-                                  <span>L</span>
-                                  <span>M</span>
-                                  <span>M</span>
-                                  <span>J</span>
-                                  <span>V</span>
-                                  <span>S</span>
-                                  <span>D</span>
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                      ) : null}
-                    </Fragment>
-                  );
-                })}
-                {!pagedVendors.length ? (
-                  <tr>
-                    <td colSpan={11} className="px-2 py-10 text-center text-sm text-[#7a6556]">
-                      Aucun vendeur trouve avec ces filtres.
-                    </td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-[#6d5a4b]">
-            <p>
-              Affichage {pagedVendors.length ? `${(currentVendorPage - 1) * perPage + 1}-${(currentVendorPage - 1) * perPage + pagedVendors.length}` : '0'}
-              {' '}sur {filteredVendorRows.length} vendeurs
-            </p>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setVendorPage((prev) => Math.max(1, prev - 1))}
-                disabled={currentVendorPage <= 1}
-                className="rounded-md border border-[#dfcfc2] px-2 py-1 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <ChevronDown className="h-4 w-4 rotate-90" />
-              </button>
-              <span className="rounded-md bg-[#c7632a] px-2.5 py-1 text-white">{currentVendorPage}</span>
-              <span>/ {totalVendorPages}</span>
-              <button
-                type="button"
-                onClick={() => setVendorPage((prev) => Math.min(totalVendorPages, prev + 1))}
-                disabled={currentVendorPage >= totalVendorPages}
-                className="rounded-md border border-[#dfcfc2] px-2 py-1 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <ChevronDown className="h-4 w-4 -rotate-90" />
-              </button>
-            </div>
-          </div>
-          </section>
+          <VendorsTable
+            vendorSummary={vendorSummary}
+            exportVendorCsv={exportVendorCsv}
+            navigate={navigate}
+            searchVendor={searchVendor}
+            setSearchVendor={setSearchVendor}
+            vendorFilter={vendorFilter}
+            setVendorFilter={setVendorFilter}
+            vendorSort={vendorSort}
+            setVendorSort={setVendorSort}
+            pagedVendors={pagedVendors}
+            expandedVendorId={expandedVendorId}
+            setExpandedVendorId={setExpandedVendorId}
+            processingActionId={processingActionId}
+            handleApproveVendor={handleApproveVendor}
+            handleToggleSuspend={handleToggleSuspend}
+            handleBanVendor={handleBanVendor}
+            currentVendorPage={currentVendorPage}
+            perPage={perPage}
+            totalVendorPages={totalVendorPages}
+            setVendorPage={setVendorPage}
+            filteredVendorRows={filteredVendorRows}
+            formatCompact={formatCompact}
+            formatNumber={formatNumber}
+            formatDateShort={formatDateShort}
+            getInitials={getInitials}
+          />
         ) : null}
 
         {isOverviewPage ? (
@@ -2090,80 +1389,6 @@ export default function AdminDashboard() {
           </section>
         ) : null}
 
-        {isOrderPage && selectedOrder ? (
-          <>
-            <button
-              type="button"
-              aria-label="Fermer detail commande"
-              onClick={() => setSelectedOrderId(null)}
-              className="fixed inset-0 z-30 bg-black/30"
-            />
-            <aside className="fixed right-0 top-0 z-40 h-full w-full max-w-md overflow-y-auto border-l border-[#e4d9d0] bg-white p-5 shadow-2xl">
-              <div className="mb-4 flex items-start justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.14em] text-[#7c6a5c]">Detail commande</p>
-                  <h3 className="text-xl font-semibold text-[#24170f]">{selectedOrder.orderNumber}</h3>
-                  <p className="text-sm text-[#6d5a4b]">{selectedOrder.clientName} - {selectedOrder.clientEmail}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedOrderId(null)}
-                  className="rounded-md border border-[#e1d2c5] p-1.5 text-[#6b5342] hover:bg-[#f7f0ea]"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-
-              <div className="mb-4 rounded-md border border-[#eee1d8] bg-[#fcf9f6] p-3 text-sm">
-                <p className="text-[#5f4a3b]">Montant: <span className="font-semibold text-[#2b1c13]">{formatNumber(selectedOrder.amount)} FCFA</span></p>
-                <p className="text-[#5f4a3b]">Statut: <span className="font-semibold text-[#2b1c13]">{selectedOrder.stageLabel}</span></p>
-                <p className="text-[#5f4a3b]">Vendeur: <span className="font-semibold text-[#2b1c13]">{selectedOrder.vendorName}</span></p>
-              </div>
-
-              <div className="mb-4 rounded-md border border-[#eee1d8] p-3">
-                <p className="mb-2 text-sm font-semibold text-[#2a1a10]">Suivi logistique</p>
-                <p className="text-sm text-[#5f4a3b]">Transporteur: <span className="font-medium text-[#2b1c13]">{selectedOrder.transporter}</span></p>
-                <p className="text-sm text-[#5f4a3b]">Numero colis: <span className="font-medium text-[#2b1c13]">{selectedOrder.trackingNumber}</span></p>
-                <p className="text-sm text-[#5f4a3b]">Livraison estimee: <span className="font-medium text-[#2b1c13]">{selectedOrder.estimatedDate}</span></p>
-              </div>
-
-              <div className="rounded-md border border-[#eee1d8] p-3">
-                <p className="mb-3 text-sm font-semibold text-[#2a1a10]">Timeline de suivi</p>
-                <div className="space-y-3">
-                  {[
-                    { key: 'nouvelles', label: 'Nouvelle commande enregistree' },
-                    { key: 'confirmees', label: 'Commande confirmee' },
-                    { key: 'preparation', label: 'Preparation en cours' },
-                    { key: 'expediees', label: 'Commande expediee' },
-                    { key: 'livrees', label: 'Commande livree' },
-                  ].map((step, index) => {
-                    const stageOrder = ['nouvelles', 'confirmees', 'preparation', 'expediees', 'livrees'];
-                    const currentIndex = stageOrder.indexOf(selectedOrder.stage);
-                    const active = selectedOrder.stage === 'annulees' ? index === 0 : index <= Math.max(0, currentIndex);
-                    return (
-                      <div key={step.key} className="flex items-start gap-2">
-                        <span className={`mt-1 inline-flex h-2.5 w-2.5 rounded-full ${active ? 'bg-[#4b8f30]' : 'bg-[#d7c9bd]'}`} />
-                        <div>
-                          <p className={`text-sm ${active ? 'text-[#2b1c13]' : 'text-[#8b7565]'}`}>{step.label}</p>
-                          <p className="text-xs text-[#8b7565]">{formatDateShort(selectedOrder.rawDate)}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {selectedOrder.stage === 'annulees' ? (
-                    <div className="flex items-start gap-2">
-                      <span className="mt-1 inline-flex h-2.5 w-2.5 rounded-full bg-[#a64c26]" />
-                      <div>
-                        <p className="text-sm text-[#2b1c13]">Commande annulee</p>
-                        <p className="text-xs text-[#8b7565]">{formatDateShort(selectedOrder.rawDate)}</p>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            </aside>
-          </>
-        ) : null}
       </main>
     </div>
   );

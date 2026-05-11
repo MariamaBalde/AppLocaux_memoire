@@ -13,9 +13,9 @@ export default function Footer() {
               Découvrez des produits uniques de toute l&apos;Afrique.
             </p>
             <div className="flex space-x-4">
-              <a href="#" className="text-gray-400 transition hover:text-white" aria-label="Facebook"><Facebook className="h-5 w-5" /></a>
-              <a href="#" className="text-gray-400 transition hover:text-white" aria-label="Twitter"><Twitter className="h-5 w-5" /></a>
-              <a href="#" className="text-gray-400 transition hover:text-white" aria-label="Instagram"><Instagram className="h-5 w-5" /></a>
+              <button className="text-gray-400 transition hover:text-white" aria-label="Facebook"><Facebook className="h-5 w-5" /></button>
+              <button className="text-gray-400 transition hover:text-white" aria-label="Twitter"><Twitter className="h-5 w-5" /></button>
+              <button className="text-gray-400 transition hover:text-white" aria-label="Instagram"><Instagram className="h-5 w-5" /></button>
             </div>
           </div>
 
