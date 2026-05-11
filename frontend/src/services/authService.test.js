@@ -73,5 +73,25 @@ describe('authService', () => {
       password_confirmation: 'Password123!',
     });
   });
-});
 
+  test('isAuthenticated depends only on token', () => {
+    authStorage.getToken.mockReturnValueOnce(null);
+    authStorage.getUser.mockReturnValueOnce({ id: 10 });
+
+    expect(authService.isAuthenticated()).toBe(false);
+  });
+
+  test('bootstrapAuth clears stale session when profile fetch fails', async () => {
+    authStorage.getUser.mockReturnValueOnce({ id: 10, role: 'client' });
+    authStorage.getToken.mockReturnValueOnce('stale-token');
+    api.get.mockRejectedValueOnce(new Error('401'));
+
+    const result = await authService.bootstrapAuth();
+
+    expect(authStorage.clear).toHaveBeenCalled();
+    expect(result).toEqual({
+      isAuthenticated: false,
+      user: null,
+    });
+  });
+});

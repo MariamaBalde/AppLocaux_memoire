@@ -100,7 +100,7 @@ export const authService = {
 
   // Vérifier si l'utilisateur est authentifié
   isAuthenticated() {
-    return Boolean(authStorage.getToken() || authStorage.getUser());
+    return Boolean(authStorage.getToken());
   },
 
   // Récupérer le profil depuis l'API
@@ -138,9 +138,6 @@ export const authService = {
         user: user || null,
       };
     } catch {
-      if (cachedUser && hasToken) {
-        return { isAuthenticated: true, user: cachedUser };
-      }
       authStorage.clear();
       return { isAuthenticated: false, user: null };
     }
